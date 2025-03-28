@@ -1,0 +1,16 @@
+name: dartapi_core
+description: A starting point for Dart libraries or applications.
+version: 0.0.1
+repository: https://github.com/my_org/my_repo
+
+environment:
+  sdk: ^3.7.2
+
+# Add regular dependencies here.
+dependencies:
+  shelf: ^1.4.2
+
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.24.0
