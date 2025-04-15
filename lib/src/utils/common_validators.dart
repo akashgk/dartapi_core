@@ -1,23 +1,12 @@
 import 'validator.dart';
 
 class EmailValidator extends Validators<String> {
-  EmailValidator() : super('Invalid email format');
+  EmailValidator(super.validationErrorMessage);
+
+  final _emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
 
   @override
-  bool validate(
-    dynamic value, {
-    List<Validators<String>> validators = const [],
-  }) {
-    if (value is! String || !value.contains('@')) {
-      return false;
-    }
-
-    for (var validator in validators) {
-      if (!validator.validate(value)) {
-        return false;
-      }
-    }
-
-    return true;
+  bool validate(dynamic value) {
+    return _emailRegex.hasMatch(value);
   }
 }
