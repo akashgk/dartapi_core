@@ -1,6 +1,6 @@
 name: dartapi_core
 description: A core library for dartapi
-version: 0.0.1
+version: 0.0.2
 repository: https://github.com/akashgk/dartapi_core
 homepage: https://github.com/akashgk/dartapi_core
 issue_tracker: https://github.com/akashgk/dartapi_core/issues
