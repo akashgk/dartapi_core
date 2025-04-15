@@ -1,11 +1,7 @@
-
 import 'package:dartapi_core/dartapi_core.dart';
 
 extension MapExtensions on Map<String, dynamic> {
-  T verifyKey<T>(
-    String key, {
-    List<Validators<T>> validators = const [],
-  }) {
+  T verifyKey<T>(String key, {List<Validators<T>> validators = const []}) {
     if (!containsKey(key)) {
       throw Exception('Missing key "$key"');
     }

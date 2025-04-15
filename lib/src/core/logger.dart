@@ -6,7 +6,9 @@ Middleware loggingMiddleware() {
     return (Request request) async {
       log('📌 Request: ${request.method} ${request.requestedUri}');
       final response = await innerHandler(request);
-      log('📌 Response: ${request.requestedUri}, Status ${response.statusCode}');
+      log(
+        '📌 Response: ${request.requestedUri}, Status ${response.statusCode}',
+      );
       return response;
     };
   };
