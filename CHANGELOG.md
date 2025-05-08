@@ -1,3 +1,6 @@
+## 0.0.5
+- Improved Logging
+
 ## 0.0.4
 - Improve code documentation
 

@@ -1,5 +1,4 @@
 import 'package:shelf/shelf.dart';
-import 'dart:developer';
 
 /// A simple middleware that logs incoming HTTP requests and responses.
 ///
@@ -8,17 +7,15 @@ import 'dart:developer';
 /// - Response status code
 ///
 /// Useful for development and debugging purposes.
-/// This uses Dart's built-in `log()` function from `dart:developer`.
 Middleware loggingMiddleware() {
   return (Handler innerHandler) {
     return (Request request) async {
-      log('📌 Request: ${request.method} ${request.requestedUri}');
+      final now = DateTime.now().toIso8601String();
+      print('📌 [$now] Request: ${request.method} ${request.requestedUri}');
       final response = await innerHandler(request);
-
-      log(
+      print(
         '📌 Response: ${request.requestedUri}, Status ${response.statusCode}',
       );
-
       return response;
     };
   };
