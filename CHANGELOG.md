@@ -1,3 +1,6 @@
+## 0.0.4
+- Improve code documentation
+
 ## 0.0.3
 - Add Email Validator
 ## 0.0.2

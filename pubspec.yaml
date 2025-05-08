@@ -1,6 +1,6 @@
 name: dartapi_core
-description: A core library for dartapi
-version: 0.0.3
+description: Core utilities for building typed, structured REST APIs in Dart, including routing, validation, and middleware support.
+version: 0.0.4
 repository: https://github.com/akashgk/dartapi_core
 homepage: https://github.com/akashgk/dartapi_core
 issue_tracker: https://github.com/akashgk/dartapi_core/issues
