@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
+import 'api_exception.dart';
 import 'api_methods.dart';
 import 'serializable.dart';
 
@@ -78,6 +79,18 @@ class ApiRoute<ApiInput, ApiOutput> {
 
       return Response.ok(
         _serialize(result),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } on FormatException catch (e) {
+      return Response(
+        400,
+        body: _serialize({'error': 'Bad Request', 'message': e.message}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } on ApiException catch (e) {
+      return Response(
+        e.statusCode,
+        body: _serialize({'error': e.message}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
