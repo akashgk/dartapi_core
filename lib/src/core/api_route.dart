@@ -47,6 +47,20 @@ class ApiRoute<ApiInput, ApiOutput> {
   /// Optional schema definition of the response body, for documentation or validation.
   final Map<String, dynamic>? responseSchema;
 
+  /// The HTTP status code returned on a successful response. Defaults to 200.
+  ///
+  /// Use this to return 201 for resource creation, 204 for deletion, etc.
+  ///
+  /// ```dart
+  /// ApiRoute(
+  ///   method: ApiMethod.post,
+  ///   path: '/users',
+  ///   statusCode: 201,
+  ///   typedHandler: createUser,
+  /// )
+  /// ```
+  final int statusCode;
+
   /// Creates a new [ApiRoute] instance.
   ///
   /// You must provide the [method], [path], and [typedHandler].
@@ -61,6 +75,7 @@ class ApiRoute<ApiInput, ApiOutput> {
     this.description,
     this.requestSchema,
     this.responseSchema,
+    this.statusCode = 200,
   });
 
   /// Returns a Shelf-compatible [Handler] for this route.
@@ -77,8 +92,9 @@ class ApiRoute<ApiInput, ApiOutput> {
 
       final result = await typedHandler(request, dto);
 
-      return Response.ok(
-        _serialize(result),
+      return Response(
+        statusCode,
+        body: _serialize(result),
         headers: {'Content-Type': 'application/json'},
       );
     } on FormatException catch (e) {

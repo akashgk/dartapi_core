@@ -1,230 +1,189 @@
-# 🚀 DartAPI - A Lightweight FastAPI-like Framework for Dart
+# dartapi_core
 
-DartAPI is a **lightweight** and **developer-friendly** framework for building fast, modern, and scalable APIs using Dart.
+Core utilities for building typed, structured REST APIs in Dart — routing, validation, middleware, and more.
 
-## 📌 Features
-✅ **Fast and lightweight** - Minimal dependencies, optimized for speed.  
-✅ **Easy to use** - Simple setup and minimal boilerplate.  
-✅ **Configurable port** - Start the server with a custom port (`--port=<number>`).  
-✅ **Dynamic routing** - Automatically registers controllers and their routes.  
-✅ **Middleware support** - Includes logging and future authentication middleware.  
-✅ **CLI Tool** - Generate projects, controllers, and models using the `dartapi` CLI.  
+Part of the [DartAPI](https://pub.dev/packages/dartapi) ecosystem.
 
 ---
 
-## 🔧 **Installation**
-To use DartAPI globally, install it via Dart's package manager:
+## Installation
 
-```sh
-dart pub global activate dartapi
-```
-
-After activation, you can use the dartapi CLI to create projects and manage your API.
-
----
-
-**📦 Creating a New API Project**
-
-```sh
-dartapi create my_project
-cd my_project
-dart pub get
-```
-
----
-**🚀 Running the Server**
-
-You can start the API server using:
-
-
-**1️⃣ Default Port (8080)**
-```sh
-dartapi run
-```
-
-**1️⃣ Custom Port (8080)**
-```sh
-dartapi run --port=3000
-```
-
-Alternatively, run it directly via Dart:
-```sh
-dart run bin/main.dart --port=3000
-```
-
-**✅ Expected Output:**
-
-🚀 Server running on http://localhost:3000
-
----
-**🔥 API Routes**
-
-The boilerplate comes with the following methods
-
-| Method | Route   | Description         |
-|--------|--------|----------------------|
-| GET    | /users | Fetch list of users  |
-| POST   | /users | Create a new user    |
-
-
-#### Example Request (Using cURL)
-
-```sh
-curl -X GET http://localhost:8080/users
-```
-
-✅ Response:
-
-```sh
-{"users": ["Christy", "Akash"]}
+```yaml
+dependencies:
+  dartapi_core: ^0.0.7
 ```
 
 ---
 
-**🛠 Generating a Controller**
+## Routing
 
-```sh
-dartapi generate controller Product
-```
+Define endpoints with `ApiRoute<Input, Output>`. The handler is fully typed — the framework handles request parsing, response serialization, and error mapping automatically.
 
-✅ Creates:
-```sh
-lib/src/controllers/product_controller.dart
-```
-The generated controller includes:
-
-```
-
-import 'package:shelf/shelf.dart';
-import 'base_controller.dart';
-
-class ProductController extends BaseController {
+```dart
+class UserController extends BaseController {
   @override
-  List<RouteDefinition> get routes => [
-        RouteDefinition('GET', '/products', getAllProducts),
-        RouteDefinition('POST', '/products', createProduct),
-      ];
-
-  Response getAllProducts(Request request) {
-    return Response.ok('{"products": ["Laptop", "Phone"]}', headers: {'Content-Type': 'application/json'});
-  }
-
-  Response createProduct(Request request) {
-    return Response.ok('{"message": "Product created"}', headers: {'Content-Type': 'application/json'});
-  }
+  List<ApiRoute> get routes => [
+    ApiRoute<void, List<String>>(
+      method: ApiMethod.get,
+      path: '/users',
+      typedHandler: getAllUsers,
+      summary: 'Get all users',
+    ),
+    ApiRoute<UserDTO, UserDTO>(
+      method: ApiMethod.post,
+      path: '/users',
+      statusCode: 201,              // custom success status code
+      typedHandler: createUser,
+      dtoParser: UserDTO.fromJson,
+    ),
+  ];
 }
 ```
 
+---
 
-✅ Now accessible at:
+## Path Parameters
 
-	•	GET /products
-	•	POST /products
+Use `request.pathParam<T>(name)` to extract typed path parameters. Shelf Router populates these from route patterns like `/users/<id>`.
 
+```dart
+ApiRoute<void, User>(
+  method: ApiMethod.get,
+  path: '/users/<id>',
+  typedHandler: (request, _) async {
+    final id = request.pathParam<int>('id');
+    return userService.findById(id);
+  },
+)
+```
+
+Supported types: `String`, `int`, `double`, `bool`. Throws `ApiException(400)` if the param is missing or cannot be converted.
 
 ---
 
-**🛠 Middleware**
+## Query Parameters
 
-DartAPI includes middleware support. The default logging middleware logs all requests:
+Use `request.queryParam<T>(name, defaultValue: ...)` to extract typed query parameters.
 
-Example Middleware (lib/src/middleware/logging.dart)
-
+```dart
+ApiRoute<void, List<Product>>(
+  method: ApiMethod.get,
+  path: '/products',
+  typedHandler: (request, _) async {
+    final page = request.queryParam<int>('page', defaultValue: 1);
+    final limit = request.queryParam<int>('limit', defaultValue: 20);
+    final search = request.queryParam<String>('q');
+    return productService.list(page: page!, limit: limit!, search: search);
+  },
+)
 ```
 
-import 'package:shelf/shelf.dart';
-
-Middleware loggingMiddleware() {
-  return (Handler innerHandler) {
-    return (Request request) async {
-      print("📌 Request: \${request.method} \${request.requestedUri}");
-      final response = await innerHandler(request);
-      return response;
-    };
-  };
-}
-```
-✅ Adding Middleware in server.dart:
-
-```
-
-final handler = Pipeline()
-    .addMiddleware(loggingMiddleware()) 
-    .addHandler(_router.handler.call);
-
-```
----
-🗄 Database Setup (Planned Feature)
-
-Currently, DartAPI provides a placeholder for database connections:
-```
-
-class Database {
-  static void connect() {
-    print('🔗 Connecting to database...');
-  }
-}
-
-In future versions, we will support:
-- ✅ PostgreSQL, SQLite, MongoDB
-- ✅ Database models with dartapi generate model User
-- ✅ Migrations (dartapi migrate db)
-```
-
----
-**🎯 Planned Features**
-
-
-- 📌 Swagger UI (/docs route for API documentation)
-- 📌 Authentication System (JWT Middleware)
-- 📌 WebSocket Support (/ws for real-time communication)
-- 📌 Database ORM Integration (PostgreSQL, SQLite, MongoDB)
-- 📌 Task Scheduling (Cron Jobs, Background Tasks)
-- 📌 Deployment Support (docker and dartapi deploy)
-
+Returns `null` (or `defaultValue`) when the parameter is absent.
 
 ---
 
-**📝 License**
-This package is open-source and licensed under the **BSD-3-Clause License**.
+## Custom Response Status Codes
+
+Set `statusCode` on any route to override the default `200 OK`:
+
+```dart
+ApiRoute(method: ApiMethod.post,   path: '/users',    statusCode: 201, ...)
+ApiRoute(method: ApiMethod.delete, path: '/users/<id>', statusCode: 204, ...)
+```
+
 ---
 
+## Request Validation
 
-**🚀 Get Started Now!**
+Use `verifyKey<T>()` on request body maps to extract fields with type checking and optional validators:
 
-```
-dartapi create my_project
-cd my_project
-dart pub get
-dartapi run --port=8080
-```
-
-
-**✅ Start building APIs with Dart! 🚀🚀🚀**
-
-
----
-**✅ Adding Auth! 🚀🚀🚀**
-
-Add the dartapi_auth package.
-```sh
-dart pub add dartapi_auth
-```
-
-Currently there is support for JWT using Auth Middleware.
-
-```
-   final jwtService = JwtService(
-    accessTokenSecret: 'super-secret-key',
-    refreshTokenSecret: 'super-refresh-secret',
-    issuer: 'dartapi',
-    audience: 'dartapi-users',
+```dart
+factory UserDTO.fromJson(Map<String, dynamic> json) {
+  return UserDTO(
+    name: json.verifyKey<String>('name'),
+    age:  json.verifyKey<int>('age'),
+    email: json.verifyKey<String>('email', validators: [
+      EmailValidator('Invalid email'),
+    ]),
   );
-  ```
-
-
-  Add the `authMiddleware` Middle ware to the route definition.
-
-  ```
-RouteDefinition('GET', '/users', getAllUsers, middlewares: [authMiddleware(jwtService)]),
+}
 ```
+
+Throws `ApiException(422)` on missing fields, wrong types, or failed validation.
+
+### Built-in validators
+
+| Validator | Description |
+|-----------|-------------|
+| `EmailValidator(message)` | Validates email format |
+
+### Custom validators
+
+```dart
+class MinLengthValidator extends Validators<String> {
+  final int min;
+  MinLengthValidator(this.min) : super('Must be at least $min characters');
+
+  @override
+  bool validate(dynamic value) => (value as String).length >= min;
+}
+```
+
+---
+
+## Middleware
+
+### Logging (built-in)
+
+```dart
+Pipeline().addMiddleware(loggingMiddleware())
+```
+
+Logs method, URI, and response status for every request.
+
+### Global exception handler
+
+Catch any unhandled exception app-wide and return a controlled error response:
+
+```dart
+Pipeline()
+  .addMiddleware(globalExceptionMiddleware(
+    onError: (error, stackTrace) {
+      if (error is DatabaseException) return ApiException(503, 'Database unavailable');
+      return ApiException(500, 'Something went wrong');
+    },
+  ))
+  .addMiddleware(loggingMiddleware())
+  .addHandler(router.handler)
+```
+
+### Per-route middleware
+
+```dart
+ApiRoute(
+  middlewares: [authMiddleware(jwtService)],
+  ...
+)
+```
+
+---
+
+## Error handling
+
+Throw `ApiException(statusCode, message)` from any handler or validator to return a specific HTTP error:
+
+```dart
+throw ApiException(404, 'User not found');
+throw ApiException(422, 'Invalid input');
+```
+
+The framework catches these automatically and returns the correct JSON response.
+
+---
+
+## Links
+
+- [dartapi CLI](https://pub.dev/packages/dartapi)
+- [dartapi_auth](https://pub.dev/packages/dartapi_auth)
+- [dartapi_db](https://pub.dev/packages/dartapi_db)
+- [GitHub](https://github.com/akashgk/dartapi_core)

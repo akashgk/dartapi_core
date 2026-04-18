@@ -1,3 +1,9 @@
+## 0.0.7
+- Add `pathParam<T>()` extension on `Request` for typed path parameter extraction
+- Add `queryParam<T>()` extension on `Request` for typed query parameter extraction with optional default values
+- Add `statusCode` field on `ApiRoute` (default `200`) for custom success response codes (e.g. 201, 204)
+- Add `globalExceptionMiddleware` for app-level exception handling
+
 ## 0.0.6
 - Add `ApiException` class for returning specific HTTP error status codes from handlers and validators
 - Fix `FormatException` (malformed JSON body) now returns 400 Bad Request instead of 500
