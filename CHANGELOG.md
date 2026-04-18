@@ -1,3 +1,6 @@
+## 0.0.8
+- Expand test suite: comprehensive tests for `ApiRoute`, `RequestExtensions` (pathParam/queryParam), `MapExtensions`, and `globalExceptionMiddleware`
+
 ## 0.0.7
 - Add `pathParam<T>()` extension on `Request` for typed path parameter extraction
 - Add `queryParam<T>()` extension on `Request` for typed query parameter extraction with optional default values
