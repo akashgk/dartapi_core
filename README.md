@@ -10,7 +10,7 @@ Part of the [DartAPI](https://pub.dev/packages/dartapi) ecosystem.
 
 ```yaml
 dependencies:
-  dartapi_core: ^0.0.7
+  dartapi_core: ^0.0.9
 ```
 
 ---
@@ -178,6 +178,48 @@ throw ApiException(422, 'Invalid input');
 ```
 
 The framework catches these automatically and returns the correct JSON response.
+
+---
+
+## OpenAPI / Swagger Docs
+
+Add auto-generated documentation to any DartAPI server. Call `enableDocs()` after `addControllers()` (or register `DocsController` manually):
+
+```dart
+app.addControllers([userController, productController]);
+app.enableDocs(title: 'My App', version: '1.0.0');
+await app.start();
+```
+
+This registers three endpoints:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /openapi.json` | OpenAPI 3.0 spec (JSON) |
+| `GET /docs` | Swagger UI |
+| `GET /redoc` | ReDoc UI |
+
+### Security schemes
+
+Mark routes that require authentication so Swagger UI shows the lock icon:
+
+```dart
+ApiRoute(
+  method: ApiMethod.get,
+  path: '/me',
+  security: [SecurityScheme.bearer],
+  middlewares: [authMiddleware(jwtService)],
+  typedHandler: getProfile,
+)
+```
+
+### Export spec from CLI
+
+With the server running, export the spec to a file:
+
+```bash
+dartapi docs --out openapi.json
+```
 
 ---
 

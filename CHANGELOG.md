@@ -1,3 +1,10 @@
+## 0.0.9
+- Add `OpenApiGenerator` — generates an OpenAPI 3.0 spec from a list of `ApiRoute`s
+- Add `DocsController` — serves `GET /openapi.json`, `GET /docs` (Swagger UI), `GET /redoc` (ReDoc)
+- Add `SecurityScheme` enum with `bearer` value; `ApiRoute` now accepts `security: [SecurityScheme.bearer]`
+- Add `contentType` field on `ApiRoute` (default `'application/json'`); used for HTML doc routes
+- Add tests for all new OpenAPI types (23 additional tests)
+
 ## 0.0.8
 - Expand test suite: comprehensive tests for `ApiRoute`, `RequestExtensions` (pathParam/queryParam), `MapExtensions`, and `globalExceptionMiddleware`
 

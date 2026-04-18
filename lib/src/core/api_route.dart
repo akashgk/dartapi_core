@@ -3,6 +3,7 @@ import 'package:shelf/shelf.dart';
 import 'api_exception.dart';
 import 'api_methods.dart';
 import 'serializable.dart';
+import '../openapi/security_scheme.dart';
 
 /// Represents a single HTTP route in your DartAPI application.
 ///
@@ -61,6 +62,24 @@ class ApiRoute<ApiInput, ApiOutput> {
   /// ```
   final int statusCode;
 
+  /// Security schemes required to access this route.
+  ///
+  /// Used when generating OpenAPI documentation to display the lock icon
+  /// in Swagger UI and ReDoc.
+  ///
+  /// ```dart
+  /// ApiRoute(
+  ///   security: [SecurityScheme.bearer],
+  ///   ...
+  /// )
+  /// ```
+  final List<SecurityScheme> security;
+
+  /// The Content-Type header returned with the response.
+  ///
+  /// Defaults to `'application/json'`. Set to `'text/html'` for HTML responses.
+  final String contentType;
+
   /// Creates a new [ApiRoute] instance.
   ///
   /// You must provide the [method], [path], and [typedHandler].
@@ -76,6 +95,8 @@ class ApiRoute<ApiInput, ApiOutput> {
     this.requestSchema,
     this.responseSchema,
     this.statusCode = 200,
+    this.security = const [],
+    this.contentType = 'application/json',
   });
 
   /// Returns a Shelf-compatible [Handler] for this route.
@@ -95,7 +116,7 @@ class ApiRoute<ApiInput, ApiOutput> {
       return Response(
         statusCode,
         body: _serialize(result),
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': contentType},
       );
     } on FormatException catch (e) {
       return Response(
