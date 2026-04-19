@@ -1,3 +1,8 @@
+## 0.0.19
+- Add `test/base_controller_test.dart` — routes getter, webSocketRoutes default, route callability
+- Add `test/logging_middleware_test.dart` — pass-through behaviour, method coverage, pipeline composition
+- Extend `test/api_route_test.dart` — per-route middleware: ordering, short-circuit, header injection
+
 ## 0.0.18
 - Add `EnvConfig` base class — typed env var access (`env`, `envInt`, `envDouble`, `envBool`) with injectable `environment` map for testing
 - Add `MissingEnvException` and `InvalidEnvException`

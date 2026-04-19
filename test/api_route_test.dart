@@ -199,6 +199,111 @@ void main() {
     });
   });
 
+  group('ApiRoute - per-route middleware', () {
+    // Mirror how RouterManager applies middlewares to a route handler.
+    Handler buildHandler(ApiRoute route) {
+      Handler h = route.handler;
+      for (final mw in route.middlewares) {
+        h = mw(h);
+      }
+      return h;
+    }
+
+    test('middleware is applied before the handler', () async {
+      final log = <String>[];
+
+      final route = ApiRoute<void, String>(
+        method: ApiMethod.get,
+        path: '/mw',
+        middlewares: [
+          (inner) => (req) async {
+                log.add('before');
+                final res = await inner(req);
+                log.add('after');
+                return res;
+              },
+        ],
+        typedHandler: (req, _) async {
+          log.add('handler');
+          return 'ok';
+        },
+      );
+
+      await buildHandler(route)(Request('GET', Uri.parse('http://localhost/mw')));
+      expect(log, equals(['before', 'handler', 'after']));
+    });
+
+    test('middleware can short-circuit and return early', () async {
+      final route = ApiRoute<void, String>(
+        method: ApiMethod.get,
+        path: '/guarded',
+        middlewares: [
+          (_) => (_) async => Response.forbidden('no access'),
+        ],
+        typedHandler: (req, _) async => 'should not reach',
+      );
+
+      final response = await buildHandler(route)(
+        Request('GET', Uri.parse('http://localhost/guarded')),
+      );
+      expect(response.statusCode, equals(403));
+      expect(await response.readAsString(), equals('no access'));
+    });
+
+    test('multiple middleware execute in order', () async {
+      final log = <String>[];
+
+      final route = ApiRoute<void, String>(
+        method: ApiMethod.get,
+        path: '/multi',
+        middlewares: [
+          (inner) => (req) async {
+                log.add('mw1-in');
+                final res = await inner(req);
+                log.add('mw1-out');
+                return res;
+              },
+          (inner) => (req) async {
+                log.add('mw2-in');
+                final res = await inner(req);
+                log.add('mw2-out');
+                return res;
+              },
+        ],
+        typedHandler: (req, _) async {
+          log.add('handler');
+          return 'done';
+        },
+      );
+
+      await buildHandler(route)(
+        Request('GET', Uri.parse('http://localhost/multi')),
+      );
+      // Middlewares are wrapped in list order so the last one is outermost.
+      // Execution: mw2 (outer) → mw1 (inner) → handler → mw1 → mw2.
+      expect(log, equals(['mw2-in', 'mw1-in', 'handler', 'mw1-out', 'mw2-out']));
+    });
+
+    test('middleware can add response headers', () async {
+      final route = ApiRoute<void, String>(
+        method: ApiMethod.get,
+        path: '/headers',
+        middlewares: [
+          (inner) => (req) async {
+                final res = await inner(req);
+                return res.change(headers: {'x-custom': 'yes'});
+              },
+        ],
+        typedHandler: (req, _) async => 'ok',
+      );
+
+      final response = await buildHandler(route)(
+        Request('GET', Uri.parse('http://localhost/headers')),
+      );
+      expect(response.headers['x-custom'], equals('yes'));
+    });
+  });
+
   group('ApiRoute - dtoParser', () {
     test('parses request body and passes DTO to handler', () async {
       final route = ApiRoute<Map<String, dynamic>, String>(
