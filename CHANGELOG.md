@@ -1,3 +1,6 @@
+## 0.0.12
+- Improve README: update version snippet, improve formatting
+
 ## 0.0.11
 - Fix type-mismatch error message in `verifyKey`: now uses friendly JSON type names (`string`, `integer`, `number`, `boolean`) instead of Dart type names
 
