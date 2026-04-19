@@ -1,18 +1,84 @@
 import 'validator.dart';
 
-/// A validator that checks whether a given string is a valid email address.
-///
-/// Uses a simple regular expression to check the format of the email.
-/// This validator can be used to validate user input in DTOs or forms.
+/// Validates that a string matches a valid email format.
 class EmailValidator extends Validators<String> {
-  /// Creates an [EmailValidator] with an optional custom error message.
   EmailValidator(super.validationErrorMessage);
-
-  /// A regular expression that matches basic email address formats.
   final _emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
 
   @override
+  bool validate(dynamic value) => _emailRegex.hasMatch(value as String);
+}
+
+/// Validates that a string has at least [min] characters.
+class MinLengthValidator extends Validators<String> {
+  final int min;
+  MinLengthValidator(this.min, [String? message])
+      : super(message ?? 'Must be at least $min characters');
+
+  @override
+  bool validate(dynamic value) => (value as String).length >= min;
+}
+
+/// Validates that a string has at most [max] characters.
+class MaxLengthValidator extends Validators<String> {
+  final int max;
+  MaxLengthValidator(this.max, [String? message])
+      : super(message ?? 'Must be at most $max characters');
+
+  @override
+  bool validate(dynamic value) => (value as String).length <= max;
+}
+
+/// Validates that a string is not blank (empty or whitespace-only).
+class NotEmptyValidator extends Validators<String> {
+  NotEmptyValidator([super.message = 'Must not be empty']);
+
+  @override
+  bool validate(dynamic value) => (value as String).trim().isNotEmpty;
+}
+
+/// Validates that a number falls within an optional [min] and [max] range (inclusive).
+class RangeValidator<T extends num> extends Validators<T> {
+  final T? min;
+  final T? max;
+
+  RangeValidator({this.min, this.max, String? message})
+      : super(message ?? _buildMessage(min, max));
+
+  static String _buildMessage(num? min, num? max) {
+    if (min != null && max != null) return 'Must be between $min and $max';
+    if (min != null) return 'Must be at least $min';
+    return 'Must be at most $max';
+  }
+
+  @override
   bool validate(dynamic value) {
-    return _emailRegex.hasMatch(value);
+    final n = value as T;
+    return (min == null || n >= min!) && (max == null || n <= max!);
+  }
+}
+
+/// Validates that a string matches the given [pattern].
+class PatternValidator extends Validators<String> {
+  final RegExp pattern;
+  PatternValidator(this.pattern, String message) : super(message);
+
+  @override
+  bool validate(dynamic value) => pattern.hasMatch(value as String);
+}
+
+/// Validates that a string is a well-formed absolute URL (http or https).
+class UrlValidator extends Validators<String> {
+  UrlValidator([super.message = 'Invalid URL']);
+
+  @override
+  bool validate(dynamic value) {
+    try {
+      final uri = Uri.parse(value as String);
+      return (uri.scheme == 'http' || uri.scheme == 'https') &&
+          uri.host.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 }

@@ -1,3 +1,18 @@
+## 0.0.17
+- Fix: use super parameters in `NotEmptyValidator` and `UrlValidator` (linter cleanup)
+
+## 0.0.16
+- Add `MinLengthValidator`, `MaxLengthValidator`, `NotEmptyValidator`, `RangeValidator<T extends num>`, `PatternValidator`, `UrlValidator`
+- Add `Pagination` — extracts `?page` and `?limit` from a request with clamping; computes `offset`
+- Add `PaginatedResponse` — `Serializable` wrapper that includes a `meta` block (`page`, `limit`, `total`, `totalPages`, `hasNext`, `hasPrev`)
+- Add `SseEvent` and `sseResponse()` for Server-Sent Events streaming
+
+## 0.0.15
+- Add `header<T>()` extension on `Request` for typed header extraction (case-insensitive)
+- Add `CookieRequestExtensions` — `request.cookies` map and `request.cookie(name)` for reading cookies
+- Add `setCookie()` helper for attaching `Set-Cookie` headers to responses (supports `maxAge`, `path`, `domain`, `sameSite`, `httpOnly`, `secure`)
+- Add `cacheMiddleware` — in-memory GET response cache with configurable TTL and custom key extractor; adds `X-Cache: HIT/MISS` headers
+
 ## 0.0.14
 - Add `multipartFiles()`, `file()`, `formFields()` extensions on `Request` for `multipart/form-data` parsing
 - Add `UploadedFile` with `bytes`, `filename`, `contentType`, `text`, and `isFile`

@@ -72,6 +72,23 @@ extension RequestExtensions on Request {
     if (value == null) return defaultValue;
     return _coerce<T>(name, value);
   }
+
+  /// Extracts and casts a request header by name (case-insensitive).
+  ///
+  /// Returns [defaultValue] if the header is absent.
+  /// Throws [ApiException] 400 if the value cannot be cast to [T].
+  ///
+  /// Supported types: [String], [int], [double], [bool].
+  ///
+  /// ```dart
+  /// final locale = request.header<String>('Accept-Language');
+  /// final version = request.header<int>('X-Api-Version', defaultValue: 1);
+  /// ```
+  T? header<T>(String name, {T? defaultValue}) {
+    final value = headers[name.toLowerCase()];
+    if (value == null) return defaultValue;
+    return _coerce<T>(name, value);
+  }
 }
 
 String _jsonTypeName<T>() => switch (T) {

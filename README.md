@@ -350,6 +350,141 @@ The generated `RouterManager` handles both `routes` and `webSocketRoutes` automa
 
 ---
 
+## Validation
+
+### Built-in validators
+
+| Validator | Type | Description |
+|-----------|------|-------------|
+| `EmailValidator(message)` | `String` | Validates email format |
+| `MinLengthValidator(n)` | `String` | At least `n` characters |
+| `MaxLengthValidator(n)` | `String` | At most `n` characters |
+| `NotEmptyValidator()` | `String` | Non-blank string |
+| `RangeValidator<T>(min:, max:)` | `num` | Numeric range (inclusive) |
+| `PatternValidator(regex, message)` | `String` | Regex match |
+| `UrlValidator()` | `String` | Valid `http`/`https` URL |
+
+```dart
+factory UserDTO.fromJson(Map<String, dynamic> json) => UserDTO(
+  name: json.verifyKey<String>('name', validators: [
+    MinLengthValidator(2),
+    MaxLengthValidator(50),
+  ]),
+  age: json.verifyKey<int>('age', validators: [
+    RangeValidator<int>(min: 0, max: 150),
+  ]),
+  website: json.verifyKey<String>('website', validators: [UrlValidator()]),
+);
+```
+
+---
+
+## Pagination
+
+`Pagination.fromRequest()` reads `?page` and `?limit`, clamps them, and computes the SQL offset:
+
+```dart
+final p = Pagination.fromRequest(request, defaultLimit: 20, maxLimit: 100);
+final rows = await db.select('products', limit: p.limit, offset: p.offset);
+```
+
+Wrap results in `PaginatedResponse` for a consistent envelope:
+
+```dart
+return PaginatedResponse(data: rows, pagination: p, total: totalCount);
+```
+
+Serializes to:
+
+```json
+{
+  "data": [...],
+  "meta": { "page": 2, "limit": 20, "total": 150, "totalPages": 8, "hasNext": true, "hasPrev": true }
+}
+```
+
+---
+
+## Server-Sent Events
+
+Stream events to the client with `sseResponse()`. The response sets the correct headers automatically.
+
+```dart
+ApiRoute<void, void>(
+  method: ApiMethod.get,
+  path: '/events',
+  typedHandler: (req, _) async {
+    final stream = Stream.periodic(Duration(seconds: 1), (i) =>
+      SseEvent(data: 'tick $i', event: 'tick', id: '$i'));
+    return sseResponse(stream.take(10));
+  },
+)
+```
+
+`SseEvent` fields: `data` (required), `id`, `event`, `retry`.
+
+---
+
+## Headers
+
+Use `request.header<T>(name)` to extract typed request headers (case-insensitive):
+
+```dart
+final locale = request.header<String>('Accept-Language');
+final version = request.header<int>('X-Api-Version', defaultValue: 1);
+```
+
+Returns `null` (or `defaultValue`) when absent. Throws `ApiException(400)` if the value cannot be cast.
+
+---
+
+## Cookies
+
+Read cookies from incoming requests:
+
+```dart
+final all = request.cookies;          // Map<String, String>
+final token = request.cookie('session'); // String?
+```
+
+Set cookies on a response:
+
+```dart
+return setCookie(
+  Response.ok('logged in'),
+  'session', tokenValue,
+  maxAge: Duration(hours: 1),
+  httpOnly: true,
+  secure: true,
+  sameSite: 'Strict',
+);
+```
+
+---
+
+## Response Caching
+
+Cache GET responses in memory for a configurable TTL. Cached responses include `X-Cache: HIT`; cache misses include `X-Cache: MISS`.
+
+```dart
+Pipeline()
+  .addMiddleware(cacheMiddleware(ttl: Duration(minutes: 10)))
+  .addHandler(router.handler)
+```
+
+Use a custom key extractor to ignore query parameters or key by user:
+
+```dart
+cacheMiddleware(
+  ttl: Duration(minutes: 5),
+  keyExtractor: (req) => req.url.path,
+)
+```
+
+Only 200 responses are cached. POST/PUT/DELETE/PATCH requests bypass the cache entirely.
+
+---
+
 ## Links
 
 - [dartapi CLI](https://pub.dev/packages/dartapi)
