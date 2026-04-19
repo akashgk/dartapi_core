@@ -1,3 +1,6 @@
+## 0.0.11
+- Fix type-mismatch error message in `verifyKey`: now uses friendly JSON type names (`string`, `integer`, `number`, `boolean`) instead of Dart type names
+
 ## 0.0.10
 - Swagger UI: `bearerAuth` security scheme is now always present in the spec so the Authorize button always appears
 - Swagger UI: `persistAuthorization: true` — entered tokens survive page refreshes (stored in localStorage)

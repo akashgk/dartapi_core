@@ -20,7 +20,7 @@ extension MapExtensions on Map<String, dynamic> {
     final value = this[key];
 
     if (value is! T) {
-      throw ApiException(422, 'Invalid type for field "$key": expected $T');
+      throw ApiException(422, 'Field "$key" must be a ${_jsonTypeName<T>()}');
     }
 
     for (final validator in validators) {
@@ -73,6 +73,14 @@ extension RequestExtensions on Request {
     return _coerce<T>(name, value);
   }
 }
+
+String _jsonTypeName<T>() => switch (T) {
+      const (String) => 'string',
+      const (int) => 'integer',
+      const (double) => 'number',
+      const (bool) => 'boolean',
+      _ => T.toString().toLowerCase(),
+    };
 
 /// Coerces a URL string value to the requested type [T].
 T _coerce<T>(String name, String value) {

@@ -37,8 +37,22 @@ void main() {
         throwsA(
           isA<ApiException>()
               .having((e) => e.statusCode, 'statusCode', 422)
-              .having((e) => e.message, 'message', contains('"age"')),
+              .having((e) => e.message, 'message', contains('"age"'))
+              .having((e) => e.message, 'message', contains('integer')),
         ),
+      );
+    });
+
+    test('type error message uses friendly JSON type names', () {
+      expect(
+        () => <String, dynamic>{'x': 1}.verifyKey<String>('x'),
+        throwsA(isA<ApiException>()
+            .having((e) => e.message, 'message', contains('string'))),
+      );
+      expect(
+        () => <String, dynamic>{'x': 'hi'}.verifyKey<bool>('x'),
+        throwsA(isA<ApiException>()
+            .having((e) => e.message, 'message', contains('boolean'))),
       );
     });
 
