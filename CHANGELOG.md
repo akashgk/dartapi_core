@@ -1,3 +1,7 @@
+## 0.0.10
+- Swagger UI: `bearerAuth` security scheme is now always present in the spec so the Authorize button always appears
+- Swagger UI: `persistAuthorization: true` — entered tokens survive page refreshes (stored in localStorage)
+
 ## 0.0.9
 - Add `OpenApiGenerator` — generates an OpenAPI 3.0 spec from a list of `ApiRoute`s
 - Add `DocsController` — serves `GET /openapi.json`, `GET /docs` (Swagger UI), `GET /redoc` (ReDoc)

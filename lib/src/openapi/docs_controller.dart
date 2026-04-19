@@ -82,6 +82,7 @@ String _swaggerHtml(String title) => '''<!DOCTYPE html>
         dom_id: '#swagger-ui',
         presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
         layout: 'BaseLayout',
+        persistAuthorization: true,
       });
     </script>
   </body>

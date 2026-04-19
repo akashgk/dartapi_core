@@ -130,15 +130,17 @@ void main() {
       );
     });
 
-    test('does not add components.securitySchemes when no route uses security',
-        () {
+    test('always includes bearerAuth in components.securitySchemes', () {
       final route = ApiRoute<void, String>(
         method: ApiMethod.get,
         path: '/open',
         typedHandler: (req, _) async => 'ok',
       );
       final spec = OpenApiGenerator(routes: [route], title: 'API').generate();
-      expect(spec.containsKey('components'), isFalse);
+      final schemes =
+          (spec['components'] as Map)['securitySchemes'] as Map;
+      expect(schemes.containsKey('bearerAuth'), isTrue);
+      expect((schemes['bearerAuth'] as Map)['scheme'], equals('bearer'));
     });
 
     test('toJson returns valid pretty-printed JSON', () {

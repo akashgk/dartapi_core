@@ -30,8 +30,6 @@ class OpenApiGenerator {
   /// Returns the OpenAPI 3.0 specification as a [Map].
   Map<String, dynamic> generate() {
     final paths = <String, dynamic>{};
-    var hasBearerSecurity = false;
-
     for (final route in routes) {
       final openApiPath = _toOpenApiPath(route.path);
       final method = route.method.value.toLowerCase();
@@ -73,7 +71,6 @@ class OpenApiGenerator {
       if (route.security.isNotEmpty) {
         operation['security'] = route.security.map((s) {
           if (s == SecurityScheme.bearer) {
-            hasBearerSecurity = true;
             return {'bearerAuth': <String>[]};
           }
           return <String, dynamic>{};
@@ -103,10 +100,7 @@ class OpenApiGenerator {
         if (description.isNotEmpty) 'description': description,
       },
       'paths': paths,
-    };
-
-    if (hasBearerSecurity) {
-      spec['components'] = {
+      'components': {
         'securitySchemes': {
           'bearerAuth': {
             'type': 'http',
@@ -114,8 +108,8 @@ class OpenApiGenerator {
             'bearerFormat': 'JWT',
           },
         },
-      };
-    }
+      },
+    };
 
     return spec;
   }
