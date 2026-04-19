@@ -1,3 +1,8 @@
+## 0.0.13
+- Add `rateLimitMiddleware` — token-bucket rate limiter keyed by IP (or custom key); returns 429 with `Retry-After` and `X-RateLimit-*` headers
+- Add `requestIdMiddleware` — attaches `X-Request-Id` to every request/response; propagates existing IDs; stores ID in `request.context['requestId']`
+- Add `compressionMiddleware` — gzip-compresses responses above a configurable threshold when client sends `Accept-Encoding: gzip`
+
 ## 0.0.12
 - Improve README: update version snippet, improve formatting
 

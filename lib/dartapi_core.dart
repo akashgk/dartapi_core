@@ -13,3 +13,7 @@ export 'src/openapi/openapi_generator.dart';
 export 'src/openapi/docs_controller.dart';
 
 export 'src/utils/utils.dart';
+
+export 'src/middleware/rate_limit_middleware.dart';
+export 'src/middleware/request_id_middleware.dart';
+export 'src/middleware/compression_middleware.dart';

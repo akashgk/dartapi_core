@@ -180,6 +180,50 @@ ApiRoute(
 )
 ```
 
+### Rate limiting
+
+Token-bucket limiter keyed by client IP by default. Returns `429 Too Many Requests` with `Retry-After` and `X-RateLimit-*` headers when the bucket is empty.
+
+```dart
+Pipeline()
+  .addMiddleware(rateLimitMiddleware(
+    maxRequests: 100,
+    window: Duration(minutes: 1),
+  ))
+  .addHandler(router.handler)
+```
+
+Key by user ID or API key instead of IP:
+
+```dart
+rateLimitMiddleware(
+  maxRequests: 1000,
+  keyExtractor: (req) =>
+      (req.context['user'] as Map?)?['sub'] as String? ?? 'anonymous',
+)
+```
+
+### Request ID
+
+Attaches `X-Request-Id` to every request/response. Propagates an existing ID from the client if present; otherwise generates a new random one. The ID is also stored in `request.context['requestId']`.
+
+```dart
+Pipeline()
+  .addMiddleware(requestIdMiddleware())
+  .addHandler(router.handler)
+```
+
+### Response compression
+
+Gzip-compresses responses when the client sends `Accept-Encoding: gzip` and the body exceeds a configurable threshold (default 1 KB).
+
+```dart
+Pipeline()
+  .addMiddleware(compressionMiddleware())           // default threshold: 1024 bytes
+  .addMiddleware(compressionMiddleware(threshold: 512))
+  .addHandler(router.handler)
+```
+
 ---
 
 ## OpenAPI / Swagger Docs
