@@ -1,3 +1,11 @@
+## 0.0.14
+- Add `multipartFiles()`, `file()`, `formFields()` extensions on `Request` for `multipart/form-data` parsing
+- Add `UploadedFile` with `bytes`, `filename`, `contentType`, `text`, and `isFile`
+- Add `BackgroundTaskQueue`, `backgroundTaskMiddleware()`, and `Request.backgroundTasks` for post-response async work
+- Add `WebSocketRoute` for WebSocket endpoints alongside HTTP routes
+- `BaseController` now has `webSocketRoutes` (default empty list)
+- New dependencies: `mime`, `shelf_web_socket`, `web_socket_channel`
+
 ## 0.0.13
 - Add `rateLimitMiddleware` — token-bucket rate limiter keyed by IP (or custom key); returns 429 with `Retry-After` and `X-RateLimit-*` headers
 - Add `requestIdMiddleware` — attaches `X-Request-Id` to every request/response; propagates existing IDs; stores ID in `request.context['requestId']`

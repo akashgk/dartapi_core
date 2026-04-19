@@ -264,6 +264,92 @@ dartapi docs --out openapi.json
 
 ---
 
+## File Uploads
+
+Parse `multipart/form-data` requests using the `Request` extensions added by this package.
+
+```dart
+Future<String> uploadAvatar(Request request, void _) async {
+  if (!request.isMultipart) throw ApiException(400, 'Expected multipart/form-data');
+
+  final avatar = await request.file('avatar');
+  if (avatar == null) throw ApiException(400, 'Missing file field "avatar"');
+
+  // avatar.bytes, avatar.filename, avatar.contentType
+  await saveFile(avatar.filename!, avatar.bytes);
+  return 'Uploaded ${avatar.filename}';
+}
+```
+
+Read plain form fields alongside files:
+
+```dart
+final fields = await request.formFields();  // Map<String, String>
+final title = fields['title'] ?? '';
+
+final parts = await request.multipartFiles(); // List<UploadedFile>
+```
+
+---
+
+## Background Tasks
+
+Schedule async work to run after the response has been sent (similar to FastAPI's `BackgroundTasks`). Add `backgroundTaskMiddleware()` to the pipeline once, then call `request.backgroundTasks.add(...)` from any handler.
+
+```dart
+// In pipeline setup:
+Pipeline()
+  .addMiddleware(backgroundTaskMiddleware())
+  .addHandler(router.handler)
+
+// In a handler:
+Future<String> createUser(Request request, UserDTO? dto) async {
+  request.backgroundTasks.add(() => emailService.sendWelcome(dto!.email));
+  return 'User created';  // response sent immediately; email sends after
+}
+```
+
+Tasks run sequentially after the response resolves. Errors in tasks are swallowed so they never affect the response.
+
+---
+
+## WebSocket Support
+
+Define WebSocket endpoints in a controller alongside HTTP routes:
+
+```dart
+class ChatController extends BaseController {
+  @override
+  List<ApiRoute> get routes => [];
+
+  @override
+  List<WebSocketRoute> get webSocketRoutes => [
+    WebSocketRoute(
+      path: '/ws/chat',
+      handler: (channel, _) async {
+        await for (final message in channel.stream) {
+          channel.sink.add('Echo: $message');
+        }
+      },
+    ),
+  ];
+}
+```
+
+Apply middleware (e.g. auth) before the upgrade handshake:
+
+```dart
+WebSocketRoute(
+  path: '/ws/private',
+  middlewares: [authMiddleware(jwtService)],
+  handler: (channel, _) { ... },
+)
+```
+
+The generated `RouterManager` handles both `routes` and `webSocketRoutes` automatically.
+
+---
+
 ## Links
 
 - [dartapi CLI](https://pub.dev/packages/dartapi)

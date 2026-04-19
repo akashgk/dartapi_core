@@ -1,6 +1,6 @@
 name: dartapi_core
 description: Core utilities for building typed, structured REST APIs in Dart, including routing, validation, and middleware support.
-version: 0.0.13
+version: 0.0.14
 repository: https://github.com/akashgk/dartapi_core
 homepage: https://github.com/akashgk/dartapi_core
 issue_tracker: https://github.com/akashgk/dartapi_core/issues
@@ -10,7 +10,10 @@ environment:
 
 # Add regular dependencies here.
 dependencies:
+  mime: ^2.0.0
   shelf: ^1.4.2
+  shelf_web_socket: ^3.0.0
+  web_socket_channel: ^3.0.3
 
 
 dev_dependencies:
