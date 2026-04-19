@@ -1,6 +1,6 @@
 # dartapi_core
 
-Core utilities for building typed, structured REST APIs in Dart — routing, validation, middleware, and more.
+Core utilities for building typed, structured REST APIs in Dart — routing, validation, middleware, and OpenAPI documentation.
 
 Part of the [DartAPI](https://pub.dev/packages/dartapi) ecosystem.
 
@@ -10,14 +10,14 @@ Part of the [DartAPI](https://pub.dev/packages/dartapi) ecosystem.
 
 ```yaml
 dependencies:
-  dartapi_core: ^0.0.9
+  dartapi_core: ^0.0.11
 ```
 
 ---
 
 ## Routing
 
-Define endpoints with `ApiRoute<Input, Output>`. The handler is fully typed — the framework handles request parsing, response serialization, and error mapping automatically.
+Define endpoints with `ApiRoute<Input, Output>`. The framework handles request parsing, response serialization, and error mapping automatically.
 
 ```dart
 class UserController extends BaseController {
@@ -32,7 +32,7 @@ class UserController extends BaseController {
     ApiRoute<UserDTO, UserDTO>(
       method: ApiMethod.post,
       path: '/users',
-      statusCode: 201,              // custom success status code
+      statusCode: 201,
       typedHandler: createUser,
       dtoParser: UserDTO.fromJson,
     ),
@@ -87,7 +87,7 @@ Returns `null` (or `defaultValue`) when the parameter is absent.
 Set `statusCode` on any route to override the default `200 OK`:
 
 ```dart
-ApiRoute(method: ApiMethod.post,   path: '/users',    statusCode: 201, ...)
+ApiRoute(method: ApiMethod.post,   path: '/users',      statusCode: 201, ...)
 ApiRoute(method: ApiMethod.delete, path: '/users/<id>', statusCode: 204, ...)
 ```
 
@@ -100,8 +100,8 @@ Use `verifyKey<T>()` on request body maps to extract fields with type checking a
 ```dart
 factory UserDTO.fromJson(Map<String, dynamic> json) {
   return UserDTO(
-    name: json.verifyKey<String>('name'),
-    age:  json.verifyKey<int>('age'),
+    name:  json.verifyKey<String>('name'),
+    age:   json.verifyKey<int>('age'),
     email: json.verifyKey<String>('email', validators: [
       EmailValidator('Invalid email'),
     ]),
@@ -109,7 +109,7 @@ factory UserDTO.fromJson(Map<String, dynamic> json) {
 }
 ```
 
-Throws `ApiException(422)` on missing fields, wrong types, or failed validation.
+Throws `ApiException(422)` on missing fields, wrong types, or failed validation. Type errors report friendly names (`string`, `integer`, `boolean`) rather than Dart type names.
 
 ### Built-in validators
 
@@ -131,6 +131,20 @@ class MinLengthValidator extends Validators<String> {
 
 ---
 
+## Error Handling
+
+Throw `ApiException(statusCode, message)` from any handler or validator to return a specific HTTP error:
+
+```dart
+throw ApiException(404, 'User not found');
+throw ApiException(422, 'Invalid input');
+throw ApiException(401, 'Unauthorized');
+```
+
+The framework catches these automatically and returns a JSON response with the correct status code.
+
+---
+
 ## Middleware
 
 ### Logging (built-in)
@@ -143,7 +157,7 @@ Logs method, URI, and response status for every request.
 
 ### Global exception handler
 
-Catch any unhandled exception app-wide and return a controlled error response:
+Catch any unhandled exception and return a controlled error response:
 
 ```dart
 Pipeline()
@@ -168,22 +182,9 @@ ApiRoute(
 
 ---
 
-## Error handling
-
-Throw `ApiException(statusCode, message)` from any handler or validator to return a specific HTTP error:
-
-```dart
-throw ApiException(404, 'User not found');
-throw ApiException(422, 'Invalid input');
-```
-
-The framework catches these automatically and returns the correct JSON response.
-
----
-
 ## OpenAPI / Swagger Docs
 
-Add auto-generated documentation to any DartAPI server. Call `enableDocs()` after `addControllers()` (or register `DocsController` manually):
+Call `enableDocs()` after `addControllers()` to serve auto-generated documentation:
 
 ```dart
 app.addControllers([userController, productController]);
@@ -195,11 +196,9 @@ This registers three endpoints:
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /openapi.json` | OpenAPI 3.0 spec (JSON) |
-| `GET /docs` | Swagger UI |
+| `GET /openapi.json` | OpenAPI 3.0 spec |
+| `GET /docs` | Swagger UI (with persistent Bearer token support) |
 | `GET /redoc` | ReDoc UI |
-
-### Security schemes
 
 Mark routes that require authentication so Swagger UI shows the lock icon:
 
@@ -213,9 +212,7 @@ ApiRoute(
 )
 ```
 
-### Export spec from CLI
-
-With the server running, export the spec to a file:
+Export the spec from the CLI while the server is running:
 
 ```bash
 dartapi docs --out openapi.json
@@ -229,3 +226,9 @@ dartapi docs --out openapi.json
 - [dartapi_auth](https://pub.dev/packages/dartapi_auth)
 - [dartapi_db](https://pub.dev/packages/dartapi_db)
 - [GitHub](https://github.com/akashgk/dartapi_core)
+
+---
+
+## License
+
+BSD 3-Clause License © 2025 Akash G Krishnan
