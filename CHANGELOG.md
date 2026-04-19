@@ -1,3 +1,8 @@
+## 0.0.18
+- Add `EnvConfig` base class — typed env var access (`env`, `envInt`, `envDouble`, `envBool`) with injectable `environment` map for testing
+- Add `MissingEnvException` and `InvalidEnvException`
+- Add `HealthController` — exposes `GET /health` returning `{"status":"ok","uptime":"..."}` 
+
 ## 0.0.17
 - Fix: use super parameters in `NotEmptyValidator` and `UrlValidator` (linter cleanup)
 
