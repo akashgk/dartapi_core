@@ -109,6 +109,21 @@ void main() {
 
       expect(await response.readAsString(), equals('hello world'));
     });
+
+    test('null handler result returns 204 No Content', () async {
+      final route = ApiRoute<void, Object?>(
+        method: ApiMethod.delete,
+        path: '/item',
+        typedHandler: (req, _) async => null,
+      );
+
+      final response = await route.handler(
+        Request('DELETE', Uri.parse('http://localhost/item')),
+      );
+
+      expect(response.statusCode, equals(204));
+      expect(await response.readAsString(), isEmpty);
+    });
   });
 
   group('ApiRoute - error handling', () {

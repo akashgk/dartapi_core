@@ -1,21 +1,15 @@
 import 'package:shelf/shelf.dart';
 
-/// A simple middleware that logs incoming HTTP requests and responses.
-///
-/// Logs include:
-/// - HTTP method and request URI
-/// - Response status code
-///
-/// Useful for development and debugging purposes.
+/// Logs every request: `METHOD /path STATUS 12ms`.
 Middleware loggingMiddleware() {
   return (Handler innerHandler) {
     return (Request request) async {
-      final now = DateTime.now().toIso8601String();
-      print('📌 [$now] Request: ${request.method} ${request.requestedUri}');
+      final sw = Stopwatch()..start();
       final response = await innerHandler(request);
-      print(
-        '📌 Response: ${request.requestedUri}, Status ${response.statusCode}',
-      );
+      sw.stop();
+      final ts = DateTime.now().toUtc().toIso8601String();
+      // ignore: avoid_print
+      print('[$ts] ${request.method} ${request.requestedUri.path} ${response.statusCode} ${sw.elapsedMilliseconds}ms');
       return response;
     };
   };

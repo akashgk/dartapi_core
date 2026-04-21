@@ -26,3 +26,4 @@ export 'src/middleware/rate_limit_middleware.dart';
 export 'src/middleware/request_id_middleware.dart';
 export 'src/middleware/compression_middleware.dart';
 export 'src/middleware/cache_middleware.dart';
+export 'src/middleware/timeout_middleware.dart';

@@ -1,3 +1,8 @@
+## 0.0.21
+- Add `timeoutMiddleware(Duration)` — returns 408 if handler exceeds the timeout
+- Fix: `null` handler result now returns 204 No Content instead of throwing a 500
+- Improve `loggingMiddleware` output: `[timestamp] METHOD /path STATUS 12ms` — removed emoji, added response duration
+
 ## 0.0.20
 - Fix: `_serialize` now handles `bool` and `num` responses — returning a `bool` from a handler no longer throws a 500 "Unable to serialize" error
 

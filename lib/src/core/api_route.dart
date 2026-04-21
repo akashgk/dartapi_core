@@ -113,6 +113,10 @@ class ApiRoute<ApiInput, ApiOutput> {
 
       final result = await typedHandler(request, dto);
 
+      if (result == null) {
+        return Response(204);
+      }
+
       return Response(
         statusCode,
         body: _serialize(result),
