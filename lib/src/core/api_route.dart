@@ -147,6 +147,7 @@ class ApiRoute<ApiInput, ApiOutput> {
 /// Supports strings, maps, lists, and classes implementing [Serializable].
 String _serialize(dynamic data) {
   if (data is String) return data;
+  if (data is bool || data is num) return jsonEncode(data);
   if (data is Map || data is List) return jsonEncode(data);
   if (data is Serializable) return jsonEncode(data.toJson());
 

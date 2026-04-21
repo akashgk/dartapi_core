@@ -1,3 +1,6 @@
+## 0.0.20
+- Fix: `_serialize` now handles `bool` and `num` responses — returning a `bool` from a handler no longer throws a 500 "Unable to serialize" error
+
 ## 0.0.19
 - Add `test/base_controller_test.dart` — routes getter, webSocketRoutes default, route callability
 - Add `test/logging_middleware_test.dart` — pass-through behaviour, method coverage, pipeline composition
