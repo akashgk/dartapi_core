@@ -31,6 +31,33 @@ extension MapExtensions on Map<String, dynamic> {
 
     return value;
   }
+
+  /// Runs multiple field validations and throws [ValidationException] with ALL
+  /// failures at once instead of stopping at the first error.
+  ///
+  /// Each key in [fields] is the field name; the value is a zero-argument
+  /// function that calls [verifyKey] (or any validation logic) for that field.
+  /// Any [ApiException] thrown inside a field function is caught and collected.
+  ///
+  /// Throws [ValidationException] if one or more fields fail.
+  ///
+  /// ```dart
+  /// json.validateAll({
+  ///   'email':    () => json.verifyKey<String>('email',    validators: [const EmailValidator()]),
+  ///   'password': () => json.verifyKey<String>('password', validators: [const MinLengthValidator(8)]),
+  /// });
+  /// ```
+  void validateAll(Map<String, void Function()> fields) {
+    final errors = <Map<String, String>>[];
+    for (final entry in fields.entries) {
+      try {
+        entry.value();
+      } on ApiException catch (e) {
+        errors.add({'field': entry.key, 'message': e.message});
+      }
+    }
+    if (errors.isNotEmpty) throw ValidationException(errors);
+  }
 }
 
 /// Extension methods on Shelf's [Request] for typed path and query parameter extraction.

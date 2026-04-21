@@ -122,6 +122,12 @@ class ApiRoute<ApiInput, ApiOutput> {
         body: _serialize(result),
         headers: {'Content-Type': contentType},
       );
+    } on ValidationException catch (e) {
+      return Response(
+        422,
+        body: jsonEncode({'errors': e.errors}),
+        headers: {'Content-Type': 'application/json'},
+      );
     } on FormatException catch (e) {
       return Response(
         400,

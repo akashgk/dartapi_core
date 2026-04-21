@@ -19,3 +19,24 @@ class ApiException implements Exception {
   @override
   String toString() => 'ApiException($statusCode): $message';
 }
+
+/// Thrown when one or more request fields fail validation.
+///
+/// Unlike [ApiException], this carries a list of per-field errors so the client
+/// receives all failures in a single response rather than one at a time.
+///
+/// Caught by [ApiRoute] and serialised as:
+/// ```json
+/// {"errors": [{"field": "email", "message": "Invalid email address"}, ...]}
+/// ```
+///
+/// Use [Map.validateAll] to build and throw this automatically.
+class ValidationException implements Exception {
+  /// Each entry has `"field"` and `"message"` keys.
+  final List<Map<String, String>> errors;
+
+  const ValidationException(this.errors);
+
+  @override
+  String toString() => 'ValidationException: $errors';
+}

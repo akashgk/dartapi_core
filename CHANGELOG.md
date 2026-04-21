@@ -1,3 +1,8 @@
+## 0.0.22
+- Add `ValidationException` — carries a list of `{field, message}` errors for multi-field validation failures
+- Add `Map.validateAll(fields)` — runs all field validations, collects every failure, then throws `ValidationException` with the full list (instead of stopping at the first error)
+- `ApiRoute` handler now catches `ValidationException` before `ApiException` and returns `{"errors": [...]}` with status 422
+
 ## 0.0.21
 - Add `timeoutMiddleware(Duration)` — returns 408 if handler exceeds the timeout
 - Fix: `null` handler result now returns 204 No Content instead of throwing a 500
