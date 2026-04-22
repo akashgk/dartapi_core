@@ -3,6 +3,7 @@ import 'package:shelf/shelf.dart';
 import 'api_exception.dart';
 import 'api_methods.dart';
 import 'serializable.dart';
+import '../middleware/cache_middleware.dart';
 import '../openapi/security_scheme.dart';
 
 /// Represents a single HTTP route in your DartAPI application.
@@ -80,6 +81,21 @@ class ApiRoute<ApiInput, ApiOutput> {
   /// Defaults to `'application/json'`. Set to `'text/html'` for HTML responses.
   final String contentType;
 
+  /// Optional TTL for per-route response caching.
+  ///
+  /// When set, responses from this route are cached in memory for the given
+  /// duration. Only GET requests that return 200 are cached.
+  ///
+  /// ```dart
+  /// ApiRoute(
+  ///   method: ApiMethod.get,
+  ///   path: '/products',
+  ///   cacheTtl: Duration(minutes: 10),
+  ///   typedHandler: (req, _) async => fetchProducts(),
+  /// )
+  /// ```
+  final Duration? cacheTtl;
+
   /// Creates a new [ApiRoute] instance.
   ///
   /// You must provide the [method], [path], and [typedHandler].
@@ -90,6 +106,7 @@ class ApiRoute<ApiInput, ApiOutput> {
     required this.typedHandler,
     this.dtoParser,
     this.middlewares = const [],
+    this.cacheTtl,
     this.summary,
     this.description,
     this.requestSchema,
@@ -98,6 +115,16 @@ class ApiRoute<ApiInput, ApiOutput> {
     this.security = const [],
     this.contentType = 'application/json',
   });
+
+  /// Effective middlewares for this route, including [cacheMiddleware] when
+  /// [cacheTtl] is set. Used by [RouterManager] when registering routes.
+  ///
+  /// Cache is placed last so it becomes the outermost wrapper — a cache HIT
+  /// short-circuits before any other per-route middleware runs.
+  List<Middleware> get effectiveMiddlewares => [
+    ...middlewares,
+    if (cacheTtl != null) cacheMiddleware(ttl: cacheTtl!),
+  ];
 
   /// Returns a Shelf-compatible [Handler] for this route.
   ///

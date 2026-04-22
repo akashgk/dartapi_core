@@ -218,7 +218,7 @@ void main() {
     // Mirror how RouterManager applies middlewares to a route handler.
     Handler buildHandler(ApiRoute route) {
       Handler h = route.handler;
-      for (final mw in route.middlewares) {
+      for (final mw in route.effectiveMiddlewares) {
         h = mw(h);
       }
       return h;
@@ -316,6 +316,75 @@ void main() {
         Request('GET', Uri.parse('http://localhost/headers')),
       );
       expect(response.headers['x-custom'], equals('yes'));
+    });
+  });
+
+  group('ApiRoute - cacheTtl', () {
+    Handler buildHandler(ApiRoute route) {
+      Handler h = route.handler;
+      for (final mw in route.effectiveMiddlewares) {
+        h = mw(h);
+      }
+      return h;
+    }
+
+    test('cacheTtl adds cache middleware — second request is HIT', () async {
+      int calls = 0;
+      final route = ApiRoute<void, Map<String, dynamic>>(
+        method: ApiMethod.get,
+        path: '/cached',
+        cacheTtl: const Duration(minutes: 5),
+        typedHandler: (req, _) async {
+          calls++;
+          return {'n': calls};
+        },
+      );
+      final handler = buildHandler(route);
+      final req = Request('GET', Uri.parse('http://localhost/cached'));
+      await handler(req);
+      final res = await handler(req);
+      expect(res.headers['x-cache'], equals('HIT'));
+      expect(calls, equals(1));
+    });
+
+    test('without cacheTtl there is no x-cache header', () async {
+      final route = ApiRoute<void, Map<String, dynamic>>(
+        method: ApiMethod.get,
+        path: '/uncached',
+        typedHandler: (req, _) async => {'ok': true},
+      );
+      final handler = buildHandler(route);
+      final req = Request('GET', Uri.parse('http://localhost/uncached'));
+      final res = await handler(req);
+      expect(res.headers['x-cache'], isNull);
+    });
+
+    test('cacheTtl cache middleware runs before other middlewares', () async {
+      final log = <String>[];
+      final route = ApiRoute<void, String>(
+        method: ApiMethod.get,
+        path: '/order',
+        cacheTtl: const Duration(minutes: 1),
+        middlewares: [
+          (inner) => (req) async {
+                log.add('mw');
+                return inner(req);
+              },
+        ],
+        typedHandler: (req, _) async {
+          log.add('handler');
+          return 'ok';
+        },
+      );
+      final handler = buildHandler(route);
+      final req = Request('GET', Uri.parse('http://localhost/order'));
+      // First call — cache MISS, both mw and handler run.
+      await handler(req);
+      log.clear();
+      // Second call — cache HIT, neither mw nor handler should run.
+      final res = await handler(req);
+      expect(res.headers['x-cache'], equals('HIT'));
+      expect(log, isEmpty);
     });
   });
 

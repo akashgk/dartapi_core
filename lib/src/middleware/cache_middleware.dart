@@ -21,14 +21,34 @@ class _CachedResponse {
 /// Caches responses with status 200 for [ttl] (default 5 minutes).
 /// Only GET requests are cached; all other methods pass through.
 ///
+/// **Global** — wraps the entire router, caches all GET endpoints:
 /// ```dart
 /// Pipeline()
 ///   .addMiddleware(cacheMiddleware(ttl: Duration(minutes: 10)))
 ///   .addHandler(router.handler)
 /// ```
 ///
-/// Use a custom [keyExtractor] to control the cache key:
+/// **Per-route** — cache only specific routes via `ApiRoute.cacheTtl`:
+/// ```dart
+/// ApiRoute(
+///   method: ApiMethod.get,
+///   path: '/products',
+///   cacheTtl: Duration(minutes: 10),
+///   typedHandler: (req, _) async => fetchProducts(),
+/// )
+/// ```
 ///
+/// Or by adding it directly to `ApiRoute.middlewares`:
+/// ```dart
+/// ApiRoute(
+///   method: ApiMethod.get,
+///   path: '/products',
+///   middlewares: [cacheMiddleware(ttl: Duration(minutes: 10))],
+///   typedHandler: (req, _) async => fetchProducts(),
+/// )
+/// ```
+///
+/// Use a custom [keyExtractor] to control the cache key:
 /// ```dart
 /// cacheMiddleware(
 ///   keyExtractor: (req) => '${req.url.path}?${req.url.query}',

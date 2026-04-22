@@ -464,7 +464,24 @@ return setCookie(
 
 ## Response Caching
 
-Cache GET responses in memory for a configurable TTL. Cached responses include `X-Cache: HIT`; cache misses include `X-Cache: MISS`.
+Cache GET responses in memory for a configurable TTL. Cached responses include `X-Cache: HIT`; cache misses include `X-Cache: MISS`. Only 200 responses are cached; POST/PUT/DELETE/PATCH bypass the cache entirely.
+
+### Per-route caching (recommended)
+
+Use `cacheTtl` on `ApiRoute` to opt specific routes into caching — other endpoints are unaffected:
+
+```dart
+ApiRoute(
+  method: ApiMethod.get,
+  path: '/products',
+  cacheTtl: Duration(minutes: 10),
+  typedHandler: (req, _) async => fetchProducts(),
+)
+```
+
+### Global caching
+
+To cache every GET endpoint in the app, apply `cacheMiddleware` globally in the pipeline:
 
 ```dart
 Pipeline()
@@ -480,8 +497,6 @@ cacheMiddleware(
   keyExtractor: (req) => req.url.path,
 )
 ```
-
-Only 200 responses are cached. POST/PUT/DELETE/PATCH requests bypass the cache entirely.
 
 ---
 

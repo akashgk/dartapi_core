@@ -120,4 +120,96 @@ void main() {
       expect(jsonDecode(body), equals({'ok': true}));
     });
   });
+
+  group('cacheMiddleware - per-route via ApiRoute.cacheTtl', () {
+    // Mirrors RouterManager: apply effectiveMiddlewares around route.handler.
+    Handler buildHandler(ApiRoute route) {
+      Handler h = route.handler;
+      for (final mw in route.effectiveMiddlewares) {
+        h = mw(h);
+      }
+      return h;
+    }
+
+    test('only the route with cacheTtl returns X-Cache headers', () async {
+      int cachedCalls = 0;
+      int uncachedCalls = 0;
+
+      final cachedRoute = ApiRoute<void, Map<String, dynamic>>(
+        method: ApiMethod.get,
+        path: '/expensive',
+        cacheTtl: const Duration(minutes: 5),
+        typedHandler: (req, _) async {
+          cachedCalls++;
+          return {'data': cachedCalls};
+        },
+      );
+
+      final uncachedRoute = ApiRoute<void, Map<String, dynamic>>(
+        method: ApiMethod.get,
+        path: '/cheap',
+        typedHandler: (req, _) async {
+          uncachedCalls++;
+          return {'data': uncachedCalls};
+        },
+      );
+
+      final cachedHandler = buildHandler(cachedRoute);
+      final uncachedHandler = buildHandler(uncachedRoute);
+
+      final req1 = Request('GET', Uri.parse('http://localhost/expensive'));
+      final req2 = Request('GET', Uri.parse('http://localhost/cheap'));
+
+      // Warm the cached route.
+      await cachedHandler(req1);
+      final cachedHit = await cachedHandler(req1);
+      expect(cachedHit.headers['x-cache'], equals('HIT'));
+      expect(cachedCalls, equals(1));
+
+      // Uncached route never sets X-Cache.
+      await uncachedHandler(req2);
+      final uncachedSecond = await uncachedHandler(req2);
+      expect(uncachedSecond.headers['x-cache'], isNull);
+      expect(uncachedCalls, equals(2));
+    });
+
+    test('each route with cacheTtl has its own isolated cache', () async {
+      int aCalls = 0;
+      int bCalls = 0;
+
+      final routeA = ApiRoute<void, Map<String, dynamic>>(
+        method: ApiMethod.get,
+        path: '/a',
+        cacheTtl: const Duration(minutes: 5),
+        typedHandler: (req, _) async {
+          aCalls++;
+          return {'route': 'a'};
+        },
+      );
+
+      final routeB = ApiRoute<void, Map<String, dynamic>>(
+        method: ApiMethod.get,
+        path: '/b',
+        cacheTtl: const Duration(minutes: 5),
+        typedHandler: (req, _) async {
+          bCalls++;
+          return {'route': 'b'};
+        },
+      );
+
+      final handlerA = buildHandler(routeA);
+      final handlerB = buildHandler(routeB);
+
+      final reqA = Request('GET', Uri.parse('http://localhost/a'));
+      final reqB = Request('GET', Uri.parse('http://localhost/b'));
+
+      await handlerA(reqA);
+      await handlerA(reqA);
+      await handlerB(reqB);
+      await handlerB(reqB);
+
+      expect(aCalls, equals(1));
+      expect(bCalls, equals(1));
+    });
+  });
 }

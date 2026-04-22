@@ -1,3 +1,8 @@
+## 0.0.23
+- Add `cacheTtl: Duration?` to `ApiRoute` — opt-in per-route response caching without touching global middleware
+- Add `ApiRoute.effectiveMiddlewares` getter — returns `[cacheMiddleware(ttl: cacheTtl), ...middlewares]` when `cacheTtl` is set; used by `RouterManager`
+- Update `cacheMiddleware` docstring with per-route usage examples
+
 ## 0.0.22
 - Add `ValidationException` — carries a list of `{field, message}` errors for multi-field validation failures
 - Add `Map.validateAll(fields)` — runs all field validations, collects every failure, then throws `ValidationException` with the full list (instead of stopping at the first error)
