@@ -500,6 +500,99 @@ cacheMiddleware(
 
 ---
 
+## Structured JSON Logging
+
+Switch `loggingMiddleware` to emit machine-readable JSON lines — one object per request. Compatible with Datadog, GCP Logging, ELK, etc.
+
+```dart
+Pipeline()
+  .addMiddleware(loggingMiddleware(format: LogFormat.json))
+  .addHandler(router.handler)
+```
+
+Output:
+```json
+{"timestamp":"2025-04-22T10:00:00.000Z","level":"INFO","method":"GET","path":"/users","status":200,"duration_ms":12,"request_id":"abc-123"}
+```
+
+`request_id` is included automatically when `requestIdMiddleware` has run upstream.
+
+---
+
+## Prometheus Metrics
+
+Enable one-line Prometheus scraping. `enableMetrics()` adds `metricsMiddleware` (records counters + latency histograms) and registers `GET /metrics` in Prometheus text format.
+
+```dart
+app.addControllers([...]);
+app.enableMetrics();   // registers GET /metrics
+```
+
+Scrape with:
+```bash
+curl http://localhost:8080/metrics
+```
+
+Exposes:
+- `http_requests_total{method, path, status}` — request counter
+- `http_request_duration_seconds{method, path}` — latency histogram (11 buckets + +Inf)
+
+Or wire it manually in the pipeline alongside your own `GET /metrics` route:
+```dart
+Pipeline()
+  .addMiddleware(metricsMiddleware())
+  .addHandler(router.handler)
+```
+
+---
+
+## HTTP Test Client
+
+Test your API in-process — no TCP socket, no server startup, no `dart:io`:
+
+```dart
+import 'package:dartapi_core/dartapi_core.dart';
+import 'package:test/test.dart';
+
+void main() {
+  late DartApiTestClient client;
+
+  setUp(() {
+    final router = RouterManager();
+    router.registerController(UserController(...));
+    client = DartApiTestClient(router.handler.call);
+  });
+
+  test('GET /users returns 200', () async {
+    final res = await client.get('/users');
+    expect(res.statusCode, 200);
+    expect(res.json<List>(), isNotEmpty);
+  });
+
+  test('POST /users creates a user', () async {
+    final res = await client.post(
+      '/users',
+      body: {'name': 'Alice', 'email': 'alice@example.com'},
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    expect(res.statusCode, 201);
+    final user = res.json<Map<String, dynamic>>();
+    expect(user['name'], 'Alice');
+  });
+}
+```
+
+Pass `defaultHeaders` once to authenticate the whole suite:
+
+```dart
+client = DartApiTestClient(
+  router.handler.call,
+  defaultHeaders: {'authorization': 'Bearer $adminToken'},
+);
+```
+
+---
+
 ## Links
 
 - [dartapi CLI](https://pub.dev/packages/dartapi)

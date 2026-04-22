@@ -1,3 +1,9 @@
+## 0.0.24
+- Add `DartApiTestClient` — in-process test client that calls a Shelf `Handler` directly (no TCP socket); exposes `get`, `post`, `put`, `delete`, `patch` and `TestResponse` with `.json<T>()`
+- Add `LogFormat` enum (`text` | `json`) to `loggingMiddleware` — JSON mode emits structured log lines with `timestamp`, `level`, `method`, `path`, `status`, `duration_ms`, and `request_id` (when `requestIdMiddleware` has run)
+- Add `metricsMiddleware()` — records `http_requests_total` and `http_request_duration_seconds` histograms per `(method, path, status)` in a singleton `MetricsRegistry`
+- Add `MetricsController` — exposes `GET /metrics` in Prometheus text format (0.0.4); register via `app.enableMetrics()`
+
 ## 0.0.23
 - Add `cacheTtl: Duration?` to `ApiRoute` — opt-in per-route response caching without touching global middleware
 - Add `ApiRoute.effectiveMiddlewares` getter — returns `[cacheMiddleware(ttl: cacheTtl), ...middlewares]` when `cacheTtl` is set; used by `RouterManager`

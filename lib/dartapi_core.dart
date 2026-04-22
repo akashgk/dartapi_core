@@ -27,3 +27,8 @@ export 'src/middleware/request_id_middleware.dart';
 export 'src/middleware/compression_middleware.dart';
 export 'src/middleware/cache_middleware.dart';
 export 'src/middleware/timeout_middleware.dart';
+export 'src/middleware/metrics_middleware.dart';
+
+export 'src/core/metrics_controller.dart';
+
+export 'src/testing/test_client.dart';
