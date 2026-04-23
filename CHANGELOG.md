@@ -1,3 +1,6 @@
+## 0.0.27
+- Upgrade `lints` from `^5.0.0` to `^6.1.0`; fix `unnecessary_underscores` lint in tests (`__` → `_`)
+
 ## 0.0.26
 - Fix `compressionMiddleware`: responses below the compression threshold had their body stream silently consumed and then returned unmodified — shelf would throw "read method can only be called once" when it tried to send the response. Now rebuilds the response with the already-buffered bytes via `response.change(body: bytes)`.
 

@@ -8,7 +8,7 @@ void main() {
     test('stores path, handler, and defaults', () {
       final route = WebSocketRoute(
         path: '/ws/chat',
-        handler: (_, __) {},
+        handler: (_, _) {},
       );
       expect(route.path, equals('/ws/chat'));
       expect(route.middlewares, isEmpty);
@@ -18,7 +18,7 @@ void main() {
     test('stores optional fields', () {
       final route = WebSocketRoute(
         path: '/ws/data',
-        handler: (_, __) {},
+        handler: (_, _) {},
         summary: 'Data stream',
         middlewares: [
           (Handler inner) => (req) => inner(req),
