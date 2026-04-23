@@ -144,6 +144,9 @@ class ApiRoute<ApiInput, ApiOutput> {
         return Response(204);
       }
 
+      // Allow handlers to return a pre-built Response (e.g., SSE, file downloads).
+      if (result is Response) return result;
+
       return Response(
         statusCode,
         body: _serialize(result),

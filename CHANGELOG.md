@@ -1,3 +1,6 @@
+## 0.0.25
+- `ApiRoute` handler now passes pre-built `shelf.Response` objects through unchanged — enables SSE (`sseResponse()`) and file-download handlers to be used with `typedHandler`
+
 ## 0.0.24
 - Add `DartApiTestClient` — in-process test client that calls a Shelf `Handler` directly (no TCP socket); exposes `get`, `post`, `put`, `delete`, `patch` and `TestResponse` with `.json<T>()`
 - Add `LogFormat` enum (`text` | `json`) to `loggingMiddleware` — JSON mode emits structured log lines with `timestamp`, `level`, `method`, `path`, `status`, `duration_ms`, and `request_id` (when `requestIdMiddleware` has run)
