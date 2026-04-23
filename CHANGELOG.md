@@ -1,3 +1,6 @@
+## 0.0.26
+- Fix `compressionMiddleware`: responses below the compression threshold had their body stream silently consumed and then returned unmodified — shelf would throw "read method can only be called once" when it tried to send the response. Now rebuilds the response with the already-buffered bytes via `response.change(body: bytes)`.
+
 ## 0.0.25
 - `ApiRoute` handler now passes pre-built `shelf.Response` objects through unchanged — enables SSE (`sseResponse()`) and file-download handlers to be used with `typedHandler`
 

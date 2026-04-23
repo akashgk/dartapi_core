@@ -28,7 +28,9 @@ Middleware compressionMiddleware({int threshold = 1024}) {
       final body = await response.read().toList();
       final bytes = body.expand((chunk) => chunk).toList();
 
-      if (bytes.length < threshold) return response;
+      // The stream is now consumed — we must not return the original response.
+      // Rebuild it with the buffered bytes so shelf can read the body once.
+      if (bytes.length < threshold) return response.change(body: bytes);
 
       final compressed = gzip.encode(bytes);
 

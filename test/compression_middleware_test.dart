@@ -36,6 +36,16 @@ void main() {
       expect(res.headers['content-encoding'], isNull);
     });
 
+    test('body is still readable when below threshold (stream not consumed)', () async {
+      const body = 'tiny';
+      final handler = _makeHandler(body, threshold: 10000);
+      final res = await handler(_req());
+      // shelf_io reads the body after the handler returns — this must not throw
+      final bytes = await res.read().toList();
+      final decoded = utf8.decode(bytes.expand((b) => b).toList());
+      expect(decoded, equals(body));
+    });
+
     test('compressed body can be decompressed back to original', () async {
       final original = 'Hello, DartAPI! ' * 50;
       final handler = _makeHandler(original, threshold: 0);
