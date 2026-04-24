@@ -1,3 +1,11 @@
+## 0.1.1
+
+**Milestone 2 — auth merged in.**
+
+- Merge all of `dartapi_auth` into `dartapi_core/lib/src/auth/`: `JwtService` (HS256 + RS256), `authMiddleware`, `apiKeyMiddleware`, `TokenStore`, `InMemoryTokenStore`, `TokenHelpers`.
+- Add `dart_jsonwebtoken ^3.4.1` as a package dependency.
+- Add 70 tests in `test/auth_test.dart` covering `InMemoryTokenStore`, `JwtService` (HS256 + RS256, revocation, rotation, JTI uniqueness), `authMiddleware`, `apiKeyMiddleware`, and `TokenHelpers`.
+
 ## 0.1.0
 
 **Framework extraction (Milestone 1) — dartapi_core is now a standalone framework.**

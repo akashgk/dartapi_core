@@ -37,3 +37,6 @@ export 'src/middleware/metrics_middleware.dart';
 export 'src/core/metrics_controller.dart';
 
 export 'src/testing/test_client.dart';
+
+// ── Auth ────────────────────────────────────────────────────────────────────
+export 'src/auth/auth.dart';
