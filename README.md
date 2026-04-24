@@ -1,8 +1,39 @@
 # dartapi_core
 
-Core utilities for building typed, structured REST APIs in Dart — routing, validation, middleware, and OpenAPI documentation.
+A framework for building typed, structured REST APIs in Dart — routing, validation, middleware, OpenAPI documentation, and full server lifecycle. Use it directly or via the [dartapi CLI](https://pub.dev/packages/dartapi).
 
-Part of the [DartAPI](https://pub.dev/packages/dartapi) ecosystem.
+---
+
+## Quick Start (no CLI required)
+
+```yaml
+dependencies:
+  dartapi_core: ^0.1.0
+```
+
+```dart
+import 'package:dartapi_core/dartapi_core.dart';
+
+void main() async {
+  final app = DartAPI();
+
+  app.addControllers([
+    InlineController([
+      ApiRoute<void, String>(
+        method: ApiMethod.get,
+        path: '/hello',
+        typedHandler: (req, _) async => 'Hello, World!',
+        summary: 'Health check',
+      ),
+    ]),
+  ]);
+
+  app.enableDocs(title: 'My API', version: '1.0.0');
+  await app.start(port: 8080);
+}
+```
+
+Run with `dart run bin/main.dart` — your API is live at `http://localhost:8080`.
 
 ---
 
@@ -10,7 +41,7 @@ Part of the [DartAPI](https://pub.dev/packages/dartapi) ecosystem.
 
 ```yaml
 dependencies:
-  dartapi_core: ^0.0.11
+  dartapi_core: ^0.1.0
 ```
 
 ---

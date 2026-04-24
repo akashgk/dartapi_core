@@ -1,3 +1,14 @@
+## 0.1.0
+
+**Framework extraction (Milestone 1) — dartapi_core is now a standalone framework.**
+
+- Add `DartAPI` class — the central application class with opt-in middleware (`enableCompression`, `enableBackgroundTasks`, `enableTimeout`, `enableRateLimit`, `enableMetrics`, `enableHealthCheck`, `enableDocs`) and lifecycle hooks (`onStartup`, `onShutdown`). No longer requires the CLI to use.
+- Add `RouterManager` — registers `BaseController` instances with a Shelf `Router`; collects all `ApiRoute`s for OpenAPI generation.
+- Add `InlineController` — define routes inline without creating a dedicated controller class.
+- Add `AppConfig` — convenience `EnvConfig` subclass with common fields (port, debug, logLevel, database, JWT, CORS); extend to add project-specific fields.
+- Add `loadEnvFile` / `mergeEnv` — `.env` file parsing utilities.
+- Add `shelf_router` and `shelf_cors_headers` as package dependencies.
+
 ## 0.0.27
 - Upgrade `lints` from `^5.0.0` to `^6.1.0`; fix `unnecessary_underscores` lint in tests (`__` → `_`)
 
