@@ -1,3 +1,7 @@
+## 0.1.3
+
+- Add comprehensive Books API example (`example/dartapi_core_example.dart`) demonstrating `DartAPI`, `ServiceRegistry`, `JwtService`, `authMiddleware`, `InMemoryTokenStore`, `BaseController`, `ApiRoute`, `InlineController`, `Pagination`, `PaginatedResponse`, `ApiException`, background tasks, per-route caching, health check, Prometheus metrics, and Swagger UI — all in a single runnable file.
+
 ## 0.1.2
 
 **Milestone 4 — dependency injection via `ServiceRegistry`.**
