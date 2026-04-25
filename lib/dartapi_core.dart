@@ -17,6 +17,7 @@ export 'src/core/app_config.dart';
 export 'src/core/router_manager.dart';
 export 'src/core/inline_controller.dart';
 export 'src/core/dartapi_server.dart';
+export 'src/core/service_registry.dart';
 export 'src/core/health_controller.dart';
 
 export 'src/openapi/security_scheme.dart';

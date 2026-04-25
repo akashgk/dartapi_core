@@ -1,3 +1,18 @@
+## 0.1.2
+
+**Milestone 4 — dependency injection via `ServiceRegistry`.**
+
+- Add `ServiceRegistry` — type-safe service locator with lazy-singleton instantiation and circular dependency detection.
+  - `register<T>(T Function(ServiceRegistry))` — lazy singleton factory; factory receives the registry to resolve sub-deps.
+  - `registerSingleton<T>(T instance)` — eager singleton (pre-built instance).
+  - `get<T>()` — resolves and caches on first call; throws `StateError` for unregistered types or circular deps.
+  - `isRegistered<T>()`, `unregister<T>()`, `clear()`.
+  - Circular dependency detected at resolution time with a full chain in the error message (e.g. `A → B → A`).
+  - Registry is usable again after catching a circular dependency error.
+- Wire `ServiceRegistry` into `DartAPI` — convenience methods `app.register<T>()`, `app.registerSingleton<T>()`, `app.get<T>()`, `app.isRegistered<T>()`, `app.registry`.
+- 43 new tests in `test/service_registry_test.dart` covering all registration modes, error paths, circular deps, type safety, and `DartAPI` integration.
+- Full suite: **478 tests passing**.
+
 ## 0.1.1
 
 **Milestone 2 — auth merged in.**

@@ -13,6 +13,7 @@ import 'health_controller.dart';
 import 'logger.dart';
 import 'metrics_controller.dart';
 import 'router_manager.dart';
+import 'service_registry.dart';
 import '../middleware/compression_middleware.dart';
 import '../middleware/metrics_middleware.dart';
 import '../middleware/rate_limit_middleware.dart';
@@ -41,6 +42,7 @@ import '../openapi/docs_controller.dart';
 /// ```
 class DartAPI {
   final RouterManager _router = RouterManager();
+  final ServiceRegistry _registry = ServiceRegistry();
 
   /// CORS origin sent in `Access-Control-Allow-Origin`. Defaults to `'*'`.
   final String corsOrigin;
@@ -62,6 +64,48 @@ class DartAPI {
   String Function(Request)? _rateLimitKeyExtractor;
 
   DartAPI({this.corsOrigin = '*', this.appName = 'dartapi'});
+
+  // ── Service registry (DI) ─────────────────────────────────────────────────
+
+  /// The underlying [ServiceRegistry] used for dependency injection.
+  ///
+  /// Prefer the convenience methods [register], [registerSingleton], and [get]
+  /// over accessing this directly.
+  ServiceRegistry get registry => _registry;
+
+  /// Registers a lazy-singleton factory for [T].
+  ///
+  /// [factory] receives the [ServiceRegistry] so it can resolve
+  /// sub-dependencies via [get].
+  ///
+  /// ```dart
+  /// app.register<UserService>(
+  ///   (r) => UserService(repository: r.get<UserRepository>()),
+  /// );
+  /// ```
+  void register<T>(T Function(ServiceRegistry) factory) =>
+      _registry.register<T>(factory);
+
+  /// Registers a pre-built [instance] as an eager singleton for [T].
+  ///
+  /// ```dart
+  /// app.registerSingleton<DartApiDB>(db);
+  /// ```
+  void registerSingleton<T>(T instance) =>
+      _registry.registerSingleton<T>(instance);
+
+  /// Returns the resolved instance for [T].
+  ///
+  /// Constructs the instance lazily on the first call; subsequent calls return
+  /// the cached singleton.
+  ///
+  /// Throws [StateError] if [T] is not registered or a circular dependency
+  /// is detected.
+  T get<T>() => _registry.get<T>();
+
+  /// Returns `true` if [T] has been registered via [register] or
+  /// [registerSingleton].
+  bool isRegistered<T>() => _registry.isRegistered<T>();
 
   // ── Hooks ─────────────────────────────────────────────────────────────────
 
