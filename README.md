@@ -1,6 +1,6 @@
 # dartapi_core
 
-A framework for building typed, structured REST APIs in Dart — routing, validation, middleware, OpenAPI documentation, and full server lifecycle. Use it directly or via the [dartapi CLI](https://pub.dev/packages/dartapi).
+A framework for building typed, structured REST APIs in Dart — routing, validation, middleware, dependency injection, JWT auth, OpenAPI documentation, and full server lifecycle. Use it directly or via the [dartapi CLI](https://pub.dev/packages/dartapi).
 
 ---
 
@@ -8,7 +8,7 @@ A framework for building typed, structured REST APIs in Dart — routing, valida
 
 ```yaml
 dependencies:
-  dartapi_core: ^0.1.0
+  dartapi_core: ^0.1.3
 ```
 
 ```dart
@@ -23,7 +23,7 @@ void main() async {
         method: ApiMethod.get,
         path: '/hello',
         typedHandler: (req, _) async => 'Hello, World!',
-        summary: 'Health check',
+        summary: 'Say hello',
       ),
     ]),
   ]);
@@ -35,13 +35,15 @@ void main() async {
 
 Run with `dart run bin/main.dart` — your API is live at `http://localhost:8080`.
 
+A complete, runnable example covering all features is in [`example/dartapi_core_example.dart`](example/dartapi_core_example.dart).
+
 ---
 
 ## Installation
 
 ```yaml
 dependencies:
-  dartapi_core: ^0.1.0
+  dartapi_core: ^0.1.3
 ```
 
 ---
@@ -69,6 +71,20 @@ class UserController extends BaseController {
     ),
   ];
 }
+```
+
+For one-off routes without a dedicated controller class, use `InlineController`:
+
+```dart
+app.addControllers([
+  InlineController([
+    ApiRoute<void, Map<String, String>>(
+      method: ApiMethod.get,
+      path: '/ping',
+      typedHandler: (req, _) async => {'status': 'ok'},
+    ),
+  ]),
+]);
 ```
 
 ---
@@ -126,27 +142,57 @@ ApiRoute(method: ApiMethod.delete, path: '/users/<id>', statusCode: 204, ...)
 
 ## Request Validation
 
+### Single-field validation
+
 Use `verifyKey<T>()` on request body maps to extract fields with type checking and optional validators:
 
 ```dart
 factory UserDTO.fromJson(Map<String, dynamic> json) {
   return UserDTO(
-    name:  json.verifyKey<String>('name'),
-    age:   json.verifyKey<int>('age'),
-    email: json.verifyKey<String>('email', validators: [
-      EmailValidator('Invalid email'),
+    name:  json.verifyKey<String>('name', validators: [
+      MinLengthValidator(2), MaxLengthValidator(50),
     ]),
+    age:   json.verifyKey<int>('age'),
+    email: json.verifyKey<String>('email', validators: [EmailValidator()]),
   );
 }
 ```
 
-Throws `ApiException(422)` on missing fields, wrong types, or failed validation. Type errors report friendly names (`string`, `integer`, `boolean`) rather than Dart type names.
+Throws `ApiException(422)` on the first failing field.
+
+### Multi-field validation (`validateAll`)
+
+Use `validateAll` to collect errors from every field before throwing — the client sees all problems at once instead of fixing them one at a time:
+
+```dart
+factory BookDTO.fromJson(Map<String, dynamic> json) {
+  json.validateAll({
+    'title':  () => json.verifyKey<String>('title',  validators: [NotEmptyValidator(), MaxLengthValidator(200)]),
+    'author': () => json.verifyKey<String>('author', validators: [NotEmptyValidator()]),
+    'year':   () => json.verifyKey<int>('year'),
+  });
+
+  return BookDTO(
+    title:  json['title']  as String,
+    author: json['author'] as String,
+    year:   json['year']   as int,
+  );
+}
+```
+
+Throws a single `ApiException(422)` listing every invalid field.
 
 ### Built-in validators
 
-| Validator | Description |
-|-----------|-------------|
-| `EmailValidator(message)` | Validates email format |
+| Validator | Type | Description |
+|-----------|------|-------------|
+| `EmailValidator()` | `String` | Validates email format |
+| `MinLengthValidator(n)` | `String` | At least `n` characters |
+| `MaxLengthValidator(n)` | `String` | At most `n` characters |
+| `NotEmptyValidator()` | `String` | Non-blank string |
+| `RangeValidator<T>(min:, max:)` | `num` | Numeric range (inclusive) |
+| `PatternValidator(regex, message)` | `String` | Regex match |
+| `UrlValidator()` | `String` | Valid `http`/`https` URL |
 
 ### Custom validators
 
@@ -176,30 +222,126 @@ The framework catches these automatically and returns a JSON response with the c
 
 ---
 
-## Middleware
+## Dependency Injection
 
-### Logging (built-in)
+`ServiceRegistry` is built into `DartAPI`. Registrations are lazy singletons — the factory runs on first `get<T>()`, is cached, and dependencies are resolved automatically.
 
 ```dart
-Pipeline().addMiddleware(loggingMiddleware())
+final app = DartAPI();
+
+app.register<UserRepository>((_) => InMemoryUserRepository());
+app.register<JwtService>(
+  (r) => JwtService(
+    accessTokenSecret: 'secret',
+    refreshTokenSecret: 'refresh-secret',
+    issuer: 'my-app',
+    audience: 'api-users',
+    tokenStore: r.get<InMemoryTokenStore>(),
+  ),
+);
+app.register<UserService>((r) => UserService(r.get<UserRepository>()));
+
+// Resolve when wiring controllers
+app.addControllers([
+  UserController(service: app.get<UserService>()),
+]);
 ```
 
-Logs method, URI, and response status for every request.
-
-### Global exception handler
-
-Catch any unhandled exception and return a controlled error response:
+Use `registerSingleton<T>(instance)` to register an already-constructed instance:
 
 ```dart
-Pipeline()
-  .addMiddleware(globalExceptionMiddleware(
-    onError: (error, stackTrace) {
-      if (error is DatabaseException) return ApiException(503, 'Database unavailable');
-      return ApiException(500, 'Something went wrong');
-    },
-  ))
-  .addMiddleware(loggingMiddleware())
-  .addHandler(router.handler)
+app.registerSingleton<AppConfig>(AppConfig(environment: env));
+```
+
+Circular dependencies are detected at resolution time with a full chain in the error message (e.g. `A → B → A`).
+
+---
+
+## JWT Authentication
+
+`JwtService`, `authMiddleware`, `InMemoryTokenStore`, and `apiKeyMiddleware` are all included in `dartapi_core` — no separate auth package needed.
+
+### Setup
+
+```dart
+final jwt = JwtService(
+  accessTokenSecret: 'my-access-secret',
+  refreshTokenSecret: 'my-refresh-secret',
+  issuer: 'my-app',
+  audience: 'api-clients',
+  tokenStore: InMemoryTokenStore(),
+);
+```
+
+RS256 (asymmetric):
+
+```dart
+final jwt = JwtService.rs256(
+  privateKeyPem: File('private.pem').readAsStringSync(),
+  publicKeyPem:  File('public.pem').readAsStringSync(),
+  issuer: 'my-app',
+  audience: 'api-clients',
+);
+```
+
+### Generating tokens
+
+```dart
+final accessToken = jwt.generateAccessToken(claims: {
+  'sub': 'user-123',
+  'email': 'alice@example.com',
+});
+
+final refreshToken = jwt.generateRefreshToken(accessToken: accessToken);
+```
+
+### Protecting routes
+
+```dart
+ApiRoute<void, UserProfile>(
+  method: ApiMethod.get,
+  path: '/me',
+  middlewares: [authMiddleware(jwt)],
+  security: [SecurityScheme.bearer],      // shows lock icon in Swagger UI
+  typedHandler: (req, _) async {
+    final user = req.context['user'] as Map<String, dynamic>;
+    return getProfile(user['sub'] as String);
+  },
+)
+```
+
+### Token revocation
+
+```dart
+await jwt.revokeToken(accessToken);
+final payload = await jwt.verifyAccessToken(accessToken); // null
+```
+
+### API key middleware
+
+```dart
+ApiRoute(
+  method: ApiMethod.post,
+  path: '/webhooks/stripe',
+  middlewares: [apiKeyMiddleware(validKeys: {'whsec_abc123'})],
+  typedHandler: handleStripeWebhook,
+)
+```
+
+---
+
+## Middleware
+
+### Opt-in pipeline helpers (via `DartAPI`)
+
+```dart
+app.enableCompression();                                         // gzip responses
+app.enableBackgroundTasks();                                     // req.backgroundTasks
+app.enableTimeout(const Duration(seconds: 30));                 // 503 on timeout
+app.enableRateLimit(maxRequests: 100, window: Duration(minutes: 1));
+app.enableMetrics();                                             // GET /metrics
+app.enableHealthCheck();                                         // GET /health
+app.enableDocs(title: 'My API', version: '1.0.0');             // GET /docs
 ```
 
 ### Per-route middleware
@@ -211,55 +353,96 @@ ApiRoute(
 )
 ```
 
-### Rate limiting
+### Middleware reference
 
-Token-bucket limiter keyed by client IP by default. Returns `429 Too Many Requests` with `Retry-After` and `X-RateLimit-*` headers when the bucket is empty.
+| Middleware | Description |
+|-----------|-------------|
+| `loggingMiddleware()` | Logs method, URI, status |
+| `globalExceptionMiddleware(onError:)` | Catch-all exception handler |
+| `rateLimitMiddleware(maxRequests:, window:)` | Token-bucket rate limiter; returns 429 |
+| `requestIdMiddleware()` | Attaches `X-Request-Id`; stores in `context['requestId']` |
+| `compressionMiddleware(threshold:)` | Gzip responses above threshold |
+| `backgroundTaskMiddleware()` | Enables `request.backgroundTasks` |
+| `cacheMiddleware(ttl:, keyExtractor:)` | In-memory GET cache; adds `X-Cache: HIT/MISS` |
+| `authMiddleware(jwtService)` | JWT Bearer token validation |
+| `apiKeyMiddleware(validKeys:, header:)` | Static API key validation |
+
+---
+
+## Path Parameters
+
+Use `request.pathParam<T>(name)` for typed path parameters, `request.queryParam<T>(name)` for query params, `request.header<T>(name)` for headers.
+
+---
+
+## Pagination
+
+`Pagination.fromRequest()` reads `?page` and `?limit`, clamps them, and computes the SQL offset:
 
 ```dart
-Pipeline()
-  .addMiddleware(rateLimitMiddleware(
-    maxRequests: 100,
-    window: Duration(minutes: 1),
-  ))
-  .addHandler(router.handler)
+final p = Pagination.fromRequest(request, defaultLimit: 20, maxLimit: 100);
+// p.page, p.limit, p.offset
+
+return PaginatedResponse(data: rows, pagination: p, total: totalCount);
 ```
 
-Key by user ID or API key instead of IP:
+Serializes to:
 
-```dart
-rateLimitMiddleware(
-  maxRequests: 1000,
-  keyExtractor: (req) =>
-      (req.context['user'] as Map?)?['sub'] as String? ?? 'anonymous',
-)
-```
-
-### Request ID
-
-Attaches `X-Request-Id` to every request/response. Propagates an existing ID from the client if present; otherwise generates a new random one. The ID is also stored in `request.context['requestId']`.
-
-```dart
-Pipeline()
-  .addMiddleware(requestIdMiddleware())
-  .addHandler(router.handler)
-```
-
-### Response compression
-
-Gzip-compresses responses when the client sends `Accept-Encoding: gzip` and the body exceeds a configurable threshold (default 1 KB).
-
-```dart
-Pipeline()
-  .addMiddleware(compressionMiddleware())           // default threshold: 1024 bytes
-  .addMiddleware(compressionMiddleware(threshold: 512))
-  .addHandler(router.handler)
+```json
+{
+  "data": [...],
+  "meta": { "page": 2, "limit": 20, "total": 150, "totalPages": 8, "hasNext": true, "hasPrev": true }
+}
 ```
 
 ---
 
-## OpenAPI / Swagger Docs
+## Response Caching
 
-Call `enableDocs()` after `addControllers()` to serve auto-generated documentation:
+### Per-route (recommended)
+
+```dart
+ApiRoute(
+  method: ApiMethod.get,
+  path: '/products',
+  cacheTtl: Duration(minutes: 10),
+  typedHandler: (req, _) async => fetchProducts(),
+)
+```
+
+### Global
+
+```dart
+Pipeline()
+  .addMiddleware(cacheMiddleware(ttl: Duration(minutes: 10)))
+  .addHandler(router.handler)
+```
+
+Cached responses include `X-Cache: HIT`; misses include `X-Cache: MISS`. Only 200 GET responses are cached.
+
+---
+
+## Background Tasks
+
+Schedule async work to run after the response has been sent (similar to FastAPI's `BackgroundTasks`):
+
+```dart
+// Enable once:
+app.enableBackgroundTasks();
+
+// In a handler:
+typedHandler: (req, dto) async {
+  final user = await createUser(dto!);
+  req.backgroundTasks.add(() => emailService.sendWelcome(user.email));
+  return user;  // response sent immediately; email sends after
+}
+```
+
+Tasks run sequentially after the response resolves. Errors in tasks are swallowed.
+
+---
+
+## OpenAPI / Swagger Docs
 
 ```dart
 app.addControllers([userController, productController]);
@@ -267,86 +450,30 @@ app.enableDocs(title: 'My App', version: '1.0.0');
 await app.start();
 ```
 
-This registers three endpoints:
-
 | Endpoint | Description |
 |----------|-------------|
 | `GET /openapi.json` | OpenAPI 3.0 spec |
 | `GET /docs` | Swagger UI (with persistent Bearer token support) |
 | `GET /redoc` | ReDoc UI |
 
-Mark routes that require authentication so Swagger UI shows the lock icon:
-
-```dart
-ApiRoute(
-  method: ApiMethod.get,
-  path: '/me',
-  security: [SecurityScheme.bearer],
-  middlewares: [authMiddleware(jwtService)],
-  typedHandler: getProfile,
-)
-```
-
-Export the spec from the CLI while the server is running:
-
-```bash
-dartapi docs --out openapi.json
-```
-
 ---
 
-## File Uploads
-
-Parse `multipart/form-data` requests using the `Request` extensions added by this package.
+## Environment Config
 
 ```dart
-Future<String> uploadAvatar(Request request, void _) async {
-  if (!request.isMultipart) throw ApiException(400, 'Expected multipart/form-data');
-
-  final avatar = await request.file('avatar');
-  if (avatar == null) throw ApiException(400, 'Missing file field "avatar"');
-
-  // avatar.bytes, avatar.filename, avatar.contentType
-  await saveFile(avatar.filename!, avatar.bytes);
-  return 'Uploaded ${avatar.filename}';
-}
+final env = mergeEnv([
+  loadEnvFile('env/.env'),
+  loadEnvFile('env/.env.dev'),
+]);
+final config = AppConfig(environment: env);
+// config.port, config.jwtAccessSecret, config.corsOrigin, config.dbName, etc.
 ```
 
-Read plain form fields alongside files:
-
-```dart
-final fields = await request.formFields();  // Map<String, String>
-final title = fields['title'] ?? '';
-
-final parts = await request.multipartFiles(); // List<UploadedFile>
-```
-
----
-
-## Background Tasks
-
-Schedule async work to run after the response has been sent (similar to FastAPI's `BackgroundTasks`). Add `backgroundTaskMiddleware()` to the pipeline once, then call `request.backgroundTasks.add(...)` from any handler.
-
-```dart
-// In pipeline setup:
-Pipeline()
-  .addMiddleware(backgroundTaskMiddleware())
-  .addHandler(router.handler)
-
-// In a handler:
-Future<String> createUser(Request request, UserDTO? dto) async {
-  request.backgroundTasks.add(() => emailService.sendWelcome(dto!.email));
-  return 'User created';  // response sent immediately; email sends after
-}
-```
-
-Tasks run sequentially after the response resolves. Errors in tasks are swallowed so they never affect the response.
+`loadEnvFile` is gracefully ignored when the file doesn't exist.
 
 ---
 
 ## WebSocket Support
-
-Define WebSocket endpoints in a controller alongside HTTP routes:
 
 ```dart
 class ChatController extends BaseController {
@@ -367,78 +494,9 @@ class ChatController extends BaseController {
 }
 ```
 
-Apply middleware (e.g. auth) before the upgrade handshake:
-
-```dart
-WebSocketRoute(
-  path: '/ws/private',
-  middlewares: [authMiddleware(jwtService)],
-  handler: (channel, _) { ... },
-)
-```
-
-The generated `RouterManager` handles both `routes` and `webSocketRoutes` automatically.
-
----
-
-## Validation
-
-### Built-in validators
-
-| Validator | Type | Description |
-|-----------|------|-------------|
-| `EmailValidator(message)` | `String` | Validates email format |
-| `MinLengthValidator(n)` | `String` | At least `n` characters |
-| `MaxLengthValidator(n)` | `String` | At most `n` characters |
-| `NotEmptyValidator()` | `String` | Non-blank string |
-| `RangeValidator<T>(min:, max:)` | `num` | Numeric range (inclusive) |
-| `PatternValidator(regex, message)` | `String` | Regex match |
-| `UrlValidator()` | `String` | Valid `http`/`https` URL |
-
-```dart
-factory UserDTO.fromJson(Map<String, dynamic> json) => UserDTO(
-  name: json.verifyKey<String>('name', validators: [
-    MinLengthValidator(2),
-    MaxLengthValidator(50),
-  ]),
-  age: json.verifyKey<int>('age', validators: [
-    RangeValidator<int>(min: 0, max: 150),
-  ]),
-  website: json.verifyKey<String>('website', validators: [UrlValidator()]),
-);
-```
-
----
-
-## Pagination
-
-`Pagination.fromRequest()` reads `?page` and `?limit`, clamps them, and computes the SQL offset:
-
-```dart
-final p = Pagination.fromRequest(request, defaultLimit: 20, maxLimit: 100);
-final rows = await db.select('products', limit: p.limit, offset: p.offset);
-```
-
-Wrap results in `PaginatedResponse` for a consistent envelope:
-
-```dart
-return PaginatedResponse(data: rows, pagination: p, total: totalCount);
-```
-
-Serializes to:
-
-```json
-{
-  "data": [...],
-  "meta": { "page": 2, "limit": 20, "total": 150, "totalPages": 8, "hasNext": true, "hasPrev": true }
-}
-```
-
 ---
 
 ## Server-Sent Events
-
-Stream events to the client with `sseResponse()`. The response sets the correct headers automatically.
 
 ```dart
 ApiRoute<void, void>(
@@ -452,134 +510,35 @@ ApiRoute<void, void>(
 )
 ```
 
-`SseEvent` fields: `data` (required), `id`, `event`, `retry`.
-
 ---
 
-## Headers
-
-Use `request.header<T>(name)` to extract typed request headers (case-insensitive):
+## File Uploads
 
 ```dart
-final locale = request.header<String>('Accept-Language');
-final version = request.header<int>('X-Api-Version', defaultValue: 1);
+Future<String> uploadAvatar(Request request, void _) async {
+  if (!request.isMultipart) throw ApiException(400, 'Expected multipart/form-data');
+  final avatar = await request.file('avatar');
+  if (avatar == null) throw ApiException(400, 'Missing file field "avatar"');
+  await saveFile(avatar.filename!, avatar.bytes);
+  return 'Uploaded ${avatar.filename}';
+}
 ```
-
-Returns `null` (or `defaultValue`) when absent. Throws `ApiException(400)` if the value cannot be cast.
-
----
-
-## Cookies
-
-Read cookies from incoming requests:
-
-```dart
-final all = request.cookies;          // Map<String, String>
-final token = request.cookie('session'); // String?
-```
-
-Set cookies on a response:
-
-```dart
-return setCookie(
-  Response.ok('logged in'),
-  'session', tokenValue,
-  maxAge: Duration(hours: 1),
-  httpOnly: true,
-  secure: true,
-  sameSite: 'Strict',
-);
-```
-
----
-
-## Response Caching
-
-Cache GET responses in memory for a configurable TTL. Cached responses include `X-Cache: HIT`; cache misses include `X-Cache: MISS`. Only 200 responses are cached; POST/PUT/DELETE/PATCH bypass the cache entirely.
-
-### Per-route caching (recommended)
-
-Use `cacheTtl` on `ApiRoute` to opt specific routes into caching — other endpoints are unaffected:
-
-```dart
-ApiRoute(
-  method: ApiMethod.get,
-  path: '/products',
-  cacheTtl: Duration(minutes: 10),
-  typedHandler: (req, _) async => fetchProducts(),
-)
-```
-
-### Global caching
-
-To cache every GET endpoint in the app, apply `cacheMiddleware` globally in the pipeline:
-
-```dart
-Pipeline()
-  .addMiddleware(cacheMiddleware(ttl: Duration(minutes: 10)))
-  .addHandler(router.handler)
-```
-
-Use a custom key extractor to ignore query parameters or key by user:
-
-```dart
-cacheMiddleware(
-  ttl: Duration(minutes: 5),
-  keyExtractor: (req) => req.url.path,
-)
-```
-
----
-
-## Structured JSON Logging
-
-Switch `loggingMiddleware` to emit machine-readable JSON lines — one object per request. Compatible with Datadog, GCP Logging, ELK, etc.
-
-```dart
-Pipeline()
-  .addMiddleware(loggingMiddleware(format: LogFormat.json))
-  .addHandler(router.handler)
-```
-
-Output:
-```json
-{"timestamp":"2025-04-22T10:00:00.000Z","level":"INFO","method":"GET","path":"/users","status":200,"duration_ms":12,"request_id":"abc-123"}
-```
-
-`request_id` is included automatically when `requestIdMiddleware` has run upstream.
 
 ---
 
 ## Prometheus Metrics
 
-Enable one-line Prometheus scraping. `enableMetrics()` adds `metricsMiddleware` (records counters + latency histograms) and registers `GET /metrics` in Prometheus text format.
-
 ```dart
-app.addControllers([...]);
 app.enableMetrics();   // registers GET /metrics
-```
-
-Scrape with:
-```bash
-curl http://localhost:8080/metrics
 ```
 
 Exposes:
 - `http_requests_total{method, path, status}` — request counter
-- `http_request_duration_seconds{method, path}` — latency histogram (11 buckets + +Inf)
-
-Or wire it manually in the pipeline alongside your own `GET /metrics` route:
-```dart
-Pipeline()
-  .addMiddleware(metricsMiddleware())
-  .addHandler(router.handler)
-```
+- `http_request_duration_seconds{method, path}` — latency histogram
 
 ---
 
 ## HTTP Test Client
-
-Test your API in-process — no TCP socket, no server startup, no `dart:io`:
 
 ```dart
 import 'package:dartapi_core/dartapi_core.dart';
@@ -599,17 +558,6 @@ void main() {
     expect(res.statusCode, 200);
     expect(res.json<List>(), isNotEmpty);
   });
-
-  test('POST /users creates a user', () async {
-    final res = await client.post(
-      '/users',
-      body: {'name': 'Alice', 'email': 'alice@example.com'},
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    expect(res.statusCode, 201);
-    final user = res.json<Map<String, dynamic>>();
-    expect(user['name'], 'Alice');
-  });
 }
 ```
 
@@ -627,8 +575,8 @@ client = DartApiTestClient(
 ## Links
 
 - [dartapi CLI](https://pub.dev/packages/dartapi)
-- [dartapi_auth](https://pub.dev/packages/dartapi_auth)
 - [dartapi_db](https://pub.dev/packages/dartapi_db)
+- [Example](example/dartapi_core_example.dart)
 - [GitHub](https://github.com/akashgk/dartapi_core)
 
 ---
