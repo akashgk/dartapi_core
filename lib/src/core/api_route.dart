@@ -5,6 +5,7 @@ import 'api_methods.dart';
 import 'serializable.dart';
 import '../middleware/cache_middleware.dart';
 import '../openapi/security_scheme.dart';
+import '../openapi/query_param_spec.dart';
 
 /// Represents a single HTTP route in your DartAPI application.
 ///
@@ -96,6 +97,24 @@ class ApiRoute<ApiInput, ApiOutput> {
   /// ```
   final Duration? cacheTtl;
 
+  /// Query parameters to document in the OpenAPI spec.
+  ///
+  /// These appear under `parameters` with `in: query` in the generated spec.
+  ///
+  /// ```dart
+  /// ApiRoute(
+  ///   method: ApiMethod.get,
+  ///   path: '/users',
+  ///   queryParams: [
+  ///     QueryParamSpec('page', type: 'integer', defaultValue: 1),
+  ///     QueryParamSpec('limit', type: 'integer', defaultValue: 20),
+  ///     QueryParamSpec('search', description: 'Filter by name'),
+  ///   ],
+  ///   typedHandler: listUsers,
+  /// )
+  /// ```
+  final List<QueryParamSpec> queryParams;
+
   /// Creates a new [ApiRoute] instance.
   ///
   /// You must provide the [method], [path], and [typedHandler].
@@ -114,6 +133,7 @@ class ApiRoute<ApiInput, ApiOutput> {
     this.statusCode = 200,
     this.security = const [],
     this.contentType = 'application/json',
+    this.queryParams = const [],
   });
 
   /// Effective middlewares for this route, including [cacheMiddleware] when

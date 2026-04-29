@@ -106,3 +106,24 @@ class UrlValidator extends Validators<String> {
   @override
   Map<String, dynamic> toSchemaProperties() => const {'format': 'uri'};
 }
+
+/// Validates that a value is one of the allowed [values].
+///
+/// Also contributes `enum: [...]` to the OpenAPI schema via [toSchemaProperties].
+///
+/// ```dart
+/// Field<String>(validators: [EnumValidator(['draft', 'published', 'archived'])])
+/// Field<int>(validators: [EnumValidator([1, 2, 3])])
+/// ```
+class EnumValidator<T> extends Validators<T> {
+  final List<T> values;
+
+  EnumValidator(this.values, [String? message])
+    : super(message ?? 'Must be one of: ${values.join(', ')}');
+
+  @override
+  bool validate(dynamic value) => values.contains(value);
+
+  @override
+  Map<String, dynamic> toSchemaProperties() => {'enum': values};
+}

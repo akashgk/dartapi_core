@@ -10,26 +10,41 @@ import 'security_scheme.dart';
 ///   routes: allRoutes,
 ///   title: 'My App',
 ///   version: '1.0.0',
+///   schemas: {
+///     'CreateUserDTO': CreateUserDTO.fields.toJsonSchema(),
+///     'UserResponse':  UserResponse.schema,
+///   },
 /// );
-/// final json = generator.toJson();     // pretty-printed JSON string
-/// final map  = generator.generate();   // raw Map<String, dynamic>
+/// final json = generator.toJson();    // pretty-printed JSON string
+/// final map  = generator.generate();  // raw Map<String, dynamic>
 /// ```
+///
+/// Named schemas registered in [schemas] appear under
+/// `components/schemas` and can be referenced in route schemas with
+/// `{'\$ref': '#/components/schemas/CreateUserDTO'}`.
 class OpenApiGenerator {
   final List<ApiRoute> routes;
   final String title;
   final String version;
   final String description;
 
+  /// Named schemas to register under `components/schemas`.
+  ///
+  /// Routes can reference these with `{'\$ref': '#/components/schemas/Name'}`.
+  final Map<String, Map<String, dynamic>> schemas;
+
   const OpenApiGenerator({
     required this.routes,
     required this.title,
     this.version = '1.0.0',
     this.description = '',
+    this.schemas = const {},
   });
 
   /// Returns the OpenAPI 3.0 specification as a [Map].
   Map<String, dynamic> generate() {
     final paths = <String, dynamic>{};
+
     for (final route in routes) {
       final openApiPath = _toOpenApiPath(route.path);
       final method = route.method.value.toLowerCase();
@@ -42,21 +57,23 @@ class OpenApiGenerator {
         operation['description'] = route.description;
       }
 
-      // Path parameters inferred from the path pattern.
-      final pathParams = _extractPathParams(route.path);
-      if (pathParams.isNotEmpty) {
-        operation['parameters'] =
-            pathParams
-                .map(
-                  (p) => {
-                    'name': p,
-                    'in': 'path',
-                    'required': true,
-                    'schema': {'type': 'string'},
-                  },
-                )
-                .toList();
+      // Parameters: path params first, then query params.
+      final parameters = <Map<String, dynamic>>[];
+
+      for (final name in _extractPathParams(route.path)) {
+        parameters.add({
+          'name': name,
+          'in': 'path',
+          'required': true,
+          'schema': {'type': 'string'},
+        });
       }
+
+      for (final qp in route.queryParams) {
+        parameters.add(qp.toOpenApiParameter());
+      }
+
+      if (parameters.isNotEmpty) operation['parameters'] = parameters;
 
       // Request body.
       if (route.requestSchema != null) {
@@ -94,7 +111,18 @@ class OpenApiGenerator {
       (paths[openApiPath] as Map<String, dynamic>)[method] = operation;
     }
 
-    final spec = <String, dynamic>{
+    final components = <String, dynamic>{
+      'securitySchemes': {
+        'bearerAuth': {
+          'type': 'http',
+          'scheme': 'bearer',
+          'bearerFormat': 'JWT',
+        },
+      },
+      if (schemas.isNotEmpty) 'schemas': schemas,
+    };
+
+    return {
       'openapi': '3.0.0',
       'info': {
         'title': title,
@@ -102,18 +130,8 @@ class OpenApiGenerator {
         if (description.isNotEmpty) 'description': description,
       },
       'paths': paths,
-      'components': {
-        'securitySchemes': {
-          'bearerAuth': {
-            'type': 'http',
-            'scheme': 'bearer',
-            'bearerFormat': 'JWT',
-          },
-        },
-      },
+      'components': components,
     };
-
-    return spec;
   }
 
   /// Returns the spec as a pretty-printed JSON string.
@@ -124,10 +142,8 @@ class OpenApiGenerator {
 String toOpenApiPath(String path) =>
     path.replaceAllMapped(RegExp(r'<(\w+)>'), (m) => '{${m[1]}}');
 
-// Private alias used inside this file.
 String _toOpenApiPath(String path) => toOpenApiPath(path);
 
-/// Extracts path parameter names from a shelf_router path.
 List<String> _extractPathParams(String path) =>
     RegExp(r'<(\w+)>').allMatches(path).map((m) => m[1]!).toList();
 

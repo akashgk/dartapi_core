@@ -82,6 +82,10 @@ class FieldSet {
 
       final prop = <String, dynamic>{'type': field.jsonType};
 
+      if (field.arrayItemType != null) {
+        prop['items'] = {'type': field.arrayItemType};
+      }
+
       if (!field.required) prop['nullable'] = true;
 
       for (final v in field.validators) {

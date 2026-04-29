@@ -1,3 +1,17 @@
+## 0.1.5
+
+**Milestone 2 — OpenAPI Spec Quality.**
+
+- Add `QueryParamSpec` — describes a query parameter for OpenAPI docs (`name`, `type`, `required`, `description`, `defaultValue`). Export from barrel.
+- Add `queryParams` field to `ApiRoute` — accepts `List<QueryParamSpec>`. Query params now appear under `parameters` with `in: query` in the generated spec alongside path params.
+- Add `schemas` parameter to `OpenApiGenerator` — a `Map<String, Map<String, dynamic>>` of named schemas emitted under `components/schemas`. Routes can reference them with `{'\$ref': '#/components/schemas/Name'}`.
+- Add `EnumValidator<T>(List<T> values)` — validates a closed value set; `toSchemaProperties()` emits `{enum: [...]}`. Export from barrel.
+- Add array type support to `Field<T>`:
+  - `Field<List<String>>` / `Field<List<int>>` / etc. now produce `jsonType: 'array'`.
+  - New `arrayItemType` property auto-derived from the generic element type.
+  - `FieldSet.toJsonSchema()` emits `items: {type: ...}` for array fields.
+- 30 new tests in `test/openapi_spec_quality_test.dart` (545 total).
+
 ## 0.1.4
 
 **Milestone 1 — Schema-Validation Sync (`FieldSet`).**
