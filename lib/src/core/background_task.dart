@@ -46,8 +46,9 @@ Middleware backgroundTaskMiddleware() {
   return (Handler inner) {
     return (Request request) async {
       final queue = BackgroundTaskQueue();
-      final updated =
-          request.change(context: {...request.context, 'backgroundTasks': queue});
+      final updated = request.change(
+        context: {...request.context, 'backgroundTasks': queue},
+      );
       final response = await inner(updated);
       unawaited(queue.run());
       return response;

@@ -118,14 +118,12 @@ class _Entry {
   dynamic _instance;
   bool _resolved;
 
-  _Entry.factory(this.factory)
-      : _instance = null,
-        _resolved = false;
+  _Entry.factory(this.factory) : _instance = null, _resolved = false;
 
   _Entry.singleton(dynamic instance)
-      : factory = null,
-        _instance = instance,
-        _resolved = true;
+    : factory = null,
+      _instance = instance,
+      _resolved = true;
 
   bool get resolved => _resolved;
   dynamic get instance => _instance;

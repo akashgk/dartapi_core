@@ -12,7 +12,9 @@ void main() {
       final output = MetricsRegistry.instance.serialize();
       expect(
         output,
-        contains('http_requests_total{method="GET",path="/users",status="200"} 2'),
+        contains(
+          'http_requests_total{method="GET",path="/users",status="200"} 2',
+        ),
       );
     });
 
@@ -22,11 +24,15 @@ void main() {
       final output = MetricsRegistry.instance.serialize();
       expect(
         output,
-        contains('http_requests_total{method="GET",path="/users",status="200"} 1'),
+        contains(
+          'http_requests_total{method="GET",path="/users",status="200"} 1',
+        ),
       );
       expect(
         output,
-        contains('http_requests_total{method="GET",path="/users",status="404"} 1'),
+        contains(
+          'http_requests_total{method="GET",path="/users",status="404"} 1',
+        ),
       );
     });
 
@@ -78,10 +84,7 @@ void main() {
       final output = MetricsRegistry.instance.serialize();
       expect(output, contains('# HELP http_requests_total'));
       expect(output, contains('# TYPE http_requests_total counter'));
-      expect(
-        output,
-        contains('# HELP http_request_duration_seconds'),
-      );
+      expect(output, contains('# HELP http_request_duration_seconds'));
       expect(
         output,
         contains('# TYPE http_request_duration_seconds histogram'),
@@ -102,9 +105,7 @@ void main() {
           .addMiddleware(metricsMiddleware())
           .addHandler((_) async => Response.ok('ok'));
 
-      await handler(
-        Request('GET', Uri.parse('http://localhost/test')),
-      );
+      await handler(Request('GET', Uri.parse('http://localhost/test')));
 
       final output = MetricsRegistry.instance.serialize();
       expect(

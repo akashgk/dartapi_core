@@ -31,38 +31,40 @@ class DocsController extends BaseController {
 
   @override
   List<ApiRoute> get routes => [
-        _openApiJsonRoute(),
-        _swaggerUiRoute(),
-        _redocRoute(),
-      ];
+    _openApiJsonRoute(),
+    _swaggerUiRoute(),
+    _redocRoute(),
+  ];
 
   ApiRoute<void, String> _openApiJsonRoute() => ApiRoute<void, String>(
-        method: ApiMethod.get,
-        path: '/openapi.json',
-        summary: 'OpenAPI 3.0 specification',
-        typedHandler: (req, _) async => OpenApiGenerator(
-          routes: apiRoutes,
-          title: title,
-          version: version,
-          description: description,
-        ).toJson(),
-      );
+    method: ApiMethod.get,
+    path: '/openapi.json',
+    summary: 'OpenAPI 3.0 specification',
+    typedHandler:
+        (req, _) async =>
+            OpenApiGenerator(
+              routes: apiRoutes,
+              title: title,
+              version: version,
+              description: description,
+            ).toJson(),
+  );
 
   ApiRoute<void, String> _swaggerUiRoute() => ApiRoute<void, String>(
-        method: ApiMethod.get,
-        path: '/docs',
-        summary: 'Swagger UI',
-        contentType: 'text/html',
-        typedHandler: (req, _) async => _swaggerHtml(title),
-      );
+    method: ApiMethod.get,
+    path: '/docs',
+    summary: 'Swagger UI',
+    contentType: 'text/html',
+    typedHandler: (req, _) async => _swaggerHtml(title),
+  );
 
   ApiRoute<void, String> _redocRoute() => ApiRoute<void, String>(
-        method: ApiMethod.get,
-        path: '/redoc',
-        summary: 'ReDoc UI',
-        contentType: 'text/html',
-        typedHandler: (req, _) async => _redocHtml(title),
-      );
+    method: ApiMethod.get,
+    path: '/redoc',
+    summary: 'ReDoc UI',
+    contentType: 'text/html',
+    typedHandler: (req, _) async => _redocHtml(title),
+  );
 }
 
 String _swaggerHtml(String title) => '''<!DOCTYPE html>

@@ -13,18 +13,22 @@ import 'package:test/test.dart';
 DartApiTestClient _client(RouterManager router) {
   final pipeline = const Pipeline()
       .addMiddleware(requestIdMiddleware())
-      .addMiddleware(globalExceptionMiddleware(
-        onError: (error, _) {
-          if (error is ApiException) return error;
-          return const ApiException(500, 'Internal Server Error');
-        },
-      ));
+      .addMiddleware(
+        globalExceptionMiddleware(
+          onError: (error, _) {
+            if (error is ApiException) return error;
+            return const ApiException(500, 'Internal Server Error');
+          },
+        ),
+      );
   return DartApiTestClient(pipeline.addHandler(router.handler.call));
 }
 
 /// Writes a temp .env file, returns its path.
 String _writeTempEnv(String content) {
-  final f = File('${Directory.systemTemp.path}/dartapi_test_${DateTime.now().microsecondsSinceEpoch}.env');
+  final f = File(
+    '${Directory.systemTemp.path}/dartapi_test_${DateTime.now().microsecondsSinceEpoch}.env',
+  );
   f.writeAsStringSync(content);
   addTearDown(f.deleteSync);
   return f.path;
@@ -39,14 +43,16 @@ void main() {
     group('route registration', () {
       test('GET route returns 200 JSON', () async {
         final router = RouterManager();
-        router.registerController(InlineController([
-          ApiRoute<void, Map<String, dynamic>>(
-            method: ApiMethod.get,
-            path: '/ping',
-            typedHandler: (req, _) async => {'pong': true},
-            summary: 'ping',
-          ),
-        ]));
+        router.registerController(
+          InlineController([
+            ApiRoute<void, Map<String, dynamic>>(
+              method: ApiMethod.get,
+              path: '/ping',
+              typedHandler: (req, _) async => {'pong': true},
+              summary: 'ping',
+            ),
+          ]),
+        );
         final res = await _client(router).get('/ping');
         expect(res.statusCode, 200);
         expect(res.json<Map<String, dynamic>>()['pong'], true);
@@ -54,58 +60,66 @@ void main() {
 
       test('POST route returns 201 with statusCode override', () async {
         final router = RouterManager();
-        router.registerController(InlineController([
-          ApiRoute<void, Map<String, dynamic>>(
-            method: ApiMethod.post,
-            path: '/items',
-            statusCode: 201,
-            typedHandler: (req, _) async => {'id': 1},
-            summary: 'create',
-          ),
-        ]));
+        router.registerController(
+          InlineController([
+            ApiRoute<void, Map<String, dynamic>>(
+              method: ApiMethod.post,
+              path: '/items',
+              statusCode: 201,
+              typedHandler: (req, _) async => {'id': 1},
+              summary: 'create',
+            ),
+          ]),
+        );
         final res = await _client(router).post('/items');
         expect(res.statusCode, 201);
       });
 
       test('PUT route', () async {
         final router = RouterManager();
-        router.registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.put,
-            path: '/items/1',
-            typedHandler: (req, _) async => 'updated',
-            summary: 'update',
-          ),
-        ]));
+        router.registerController(
+          InlineController([
+            ApiRoute<void, String>(
+              method: ApiMethod.put,
+              path: '/items/1',
+              typedHandler: (req, _) async => 'updated',
+              summary: 'update',
+            ),
+          ]),
+        );
         final res = await _client(router).put('/items/1');
         expect(res.statusCode, 200);
       });
 
       test('DELETE route', () async {
         final router = RouterManager();
-        router.registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.delete,
-            path: '/items/1',
-            statusCode: 204,
-            typedHandler: (req, _) async => '',
-            summary: 'delete',
-          ),
-        ]));
+        router.registerController(
+          InlineController([
+            ApiRoute<void, String>(
+              method: ApiMethod.delete,
+              path: '/items/1',
+              statusCode: 204,
+              typedHandler: (req, _) async => '',
+              summary: 'delete',
+            ),
+          ]),
+        );
         final res = await _client(router).delete('/items/1');
         expect(res.statusCode, 204);
       });
 
       test('PATCH route', () async {
         final router = RouterManager();
-        router.registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.patch,
-            path: '/items/1',
-            typedHandler: (req, _) async => 'patched',
-            summary: 'patch',
-          ),
-        ]));
+        router.registerController(
+          InlineController([
+            ApiRoute<void, String>(
+              method: ApiMethod.patch,
+              path: '/items/1',
+              typedHandler: (req, _) async => 'patched',
+              summary: 'patch',
+            ),
+          ]),
+        );
         final res = await _client(router).patch('/items/1');
         expect(res.statusCode, 200);
       });
@@ -119,57 +133,65 @@ void main() {
 
       test('multiple controllers, all routes reachable', () async {
         final router = RouterManager();
-        router.registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.get,
-            path: '/a',
-            typedHandler: (req, _) async => 'a',
-            summary: 'a',
-          ),
-        ]));
-        router.registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.get,
-            path: '/b',
-            typedHandler: (req, _) async => 'b',
-            summary: 'b',
-          ),
-        ]));
+        router.registerController(
+          InlineController([
+            ApiRoute<void, String>(
+              method: ApiMethod.get,
+              path: '/a',
+              typedHandler: (req, _) async => 'a',
+              summary: 'a',
+            ),
+          ]),
+        );
+        router.registerController(
+          InlineController([
+            ApiRoute<void, String>(
+              method: ApiMethod.get,
+              path: '/b',
+              typedHandler: (req, _) async => 'b',
+              summary: 'b',
+            ),
+          ]),
+        );
         expect((await _client(router).get('/a')).statusCode, 200);
         expect((await _client(router).get('/b')).statusCode, 200);
       });
 
       test('multiple routes on same controller', () async {
         final router = RouterManager();
-        router.registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.get,
-            path: '/x',
-            typedHandler: (req, _) async => 'x',
-            summary: 'x',
-          ),
-          ApiRoute<void, String>(
-            method: ApiMethod.get,
-            path: '/y',
-            typedHandler: (req, _) async => 'y',
-            summary: 'y',
-          ),
-        ]));
+        router.registerController(
+          InlineController([
+            ApiRoute<void, String>(
+              method: ApiMethod.get,
+              path: '/x',
+              typedHandler: (req, _) async => 'x',
+              summary: 'x',
+            ),
+            ApiRoute<void, String>(
+              method: ApiMethod.get,
+              path: '/y',
+              typedHandler: (req, _) async => 'y',
+              summary: 'y',
+            ),
+          ]),
+        );
         expect((await _client(router).get('/x')).statusCode, 200);
         expect((await _client(router).get('/y')).statusCode, 200);
       });
 
       test('ApiException thrown in handler propagates to 4xx', () async {
         final router = RouterManager();
-        router.registerController(InlineController([
-          ApiRoute<void, void>(
-            method: ApiMethod.get,
-            path: '/forbidden',
-            typedHandler: (req, _) async =>
-                throw const ApiException(403, 'Forbidden'),
-            summary: 'forbidden',
-          ),
-        ]));
+        router.registerController(
+          InlineController([
+            ApiRoute<void, void>(
+              method: ApiMethod.get,
+              path: '/forbidden',
+              typedHandler:
+                  (req, _) async => throw const ApiException(403, 'Forbidden'),
+              summary: 'forbidden',
+            ),
+          ]),
+        );
         // ApiRoute itself catches ApiException and returns it directly.
         final res = await _client(router).get('/forbidden');
         expect(res.statusCode, 403);
@@ -177,21 +199,24 @@ void main() {
 
       test('per-route middleware is applied before handler', () async {
         var middlewareCalled = false;
-        Middleware tracer() => (inner) => (req) async {
+        Middleware tracer() =>
+            (inner) => (req) async {
               middlewareCalled = true;
               return inner(req);
             };
 
         final router = RouterManager();
-        router.registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.get,
-            path: '/traced',
-            typedHandler: (req, _) async => 'ok',
-            summary: 'traced',
-            middlewares: [tracer()],
-          ),
-        ]));
+        router.registerController(
+          InlineController([
+            ApiRoute<void, String>(
+              method: ApiMethod.get,
+              path: '/traced',
+              typedHandler: (req, _) async => 'ok',
+              summary: 'traced',
+              middlewares: [tracer()],
+            ),
+          ]),
+        );
         await _client(router).get('/traced');
         expect(middlewareCalled, isTrue);
       });
@@ -201,15 +226,17 @@ void main() {
             (inner) => (req) async => Response.forbidden('blocked');
 
         final router = RouterManager();
-        router.registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.get,
-            path: '/blocked',
-            typedHandler: (req, _) async => 'should not reach',
-            summary: 'blocked',
-            middlewares: [blocker()],
-          ),
-        ]));
+        router.registerController(
+          InlineController([
+            ApiRoute<void, String>(
+              method: ApiMethod.get,
+              path: '/blocked',
+              typedHandler: (req, _) async => 'should not reach',
+              summary: 'blocked',
+              middlewares: [blocker()],
+            ),
+          ]),
+        );
         final res = await _client(router).get('/blocked');
         expect(res.statusCode, 403);
       });
@@ -255,28 +282,32 @@ void main() {
 
       test('count matches number of registered routes across controllers', () {
         final router = RouterManager();
-        router.registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.get,
-            path: '/1',
-            typedHandler: (req, _) async => '1',
-            summary: '1',
-          ),
-          ApiRoute<void, String>(
-            method: ApiMethod.get,
-            path: '/2',
-            typedHandler: (req, _) async => '2',
-            summary: '2',
-          ),
-        ]));
-        router.registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.get,
-            path: '/3',
-            typedHandler: (req, _) async => '3',
-            summary: '3',
-          ),
-        ]));
+        router.registerController(
+          InlineController([
+            ApiRoute<void, String>(
+              method: ApiMethod.get,
+              path: '/1',
+              typedHandler: (req, _) async => '1',
+              summary: '1',
+            ),
+            ApiRoute<void, String>(
+              method: ApiMethod.get,
+              path: '/2',
+              typedHandler: (req, _) async => '2',
+              summary: '2',
+            ),
+          ]),
+        );
+        router.registerController(
+          InlineController([
+            ApiRoute<void, String>(
+              method: ApiMethod.get,
+              path: '/3',
+              typedHandler: (req, _) async => '3',
+              summary: '3',
+            ),
+          ]),
+        );
         expect(router.collectedRoutes.length, 3);
       });
     });
@@ -440,16 +471,18 @@ void main() {
 
   group('DartAPI pipeline integration', () {
     DartApiTestClient buildPipeline(List<ApiRoute> routes) {
-      final router = RouterManager()
-        ..registerController(InlineController(routes));
+      final router =
+          RouterManager()..registerController(InlineController(routes));
       final pipeline = const Pipeline()
           .addMiddleware(requestIdMiddleware())
-          .addMiddleware(globalExceptionMiddleware(
-            onError: (error, _) {
-              if (error is ApiException) return error;
-              return const ApiException(500, 'Internal Server Error');
-            },
-          ));
+          .addMiddleware(
+            globalExceptionMiddleware(
+              onError: (error, _) {
+                if (error is ApiException) return error;
+                return const ApiException(500, 'Internal Server Error');
+              },
+            ),
+          );
       return DartApiTestClient(pipeline.addHandler(router.handler.call));
     }
 
@@ -472,8 +505,7 @@ void main() {
         ApiRoute<void, void>(
           method: ApiMethod.get,
           path: '/gone',
-          typedHandler: (req, _) async =>
-              throw const ApiException(410, 'Gone'),
+          typedHandler: (req, _) async => throw const ApiException(410, 'Gone'),
           summary: 's',
         ),
       ]);
@@ -506,8 +538,9 @@ void main() {
         ),
       ]);
       final res = await client.get('/id');
-      final hasId =
-          res.headers.keys.any((k) => k.toLowerCase() == 'x-request-id');
+      final hasId = res.headers.keys.any(
+        (k) => k.toLowerCase() == 'x-request-id',
+      );
       expect(hasId, isTrue);
     });
 
@@ -521,34 +554,43 @@ void main() {
         ),
       ]);
       final res = await client.get('/id', headers: {'X-Request-Id': 'abc-123'});
-      final id = res.headers.entries
-          .firstWhere((e) => e.key.toLowerCase() == 'x-request-id')
-          .value;
+      final id =
+          res.headers.entries
+              .firstWhere((e) => e.key.toLowerCase() == 'x-request-id')
+              .value;
       expect(id, 'abc-123');
     });
 
     test('rateLimit middleware returns 429 when limit exceeded', () async {
-      final router = RouterManager()
-        ..registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.get,
-            path: '/limited',
-            typedHandler: (req, _) async => 'ok',
-            summary: 's',
-          ),
-        ]));
+      final router =
+          RouterManager()..registerController(
+            InlineController([
+              ApiRoute<void, String>(
+                method: ApiMethod.get,
+                path: '/limited',
+                typedHandler: (req, _) async => 'ok',
+                summary: 's',
+              ),
+            ]),
+          );
       final pipeline = const Pipeline()
-          .addMiddleware(rateLimitMiddleware(
-            maxRequests: 2,
-            window: const Duration(minutes: 1),
-            keyExtractor: (_) => 'test-key',
-          ))
-          .addMiddleware(globalExceptionMiddleware(
-            onError: (e, _) =>
-                e is ApiException ? e : const ApiException(500, 'err'),
-          ));
-      final client =
-          DartApiTestClient(pipeline.addHandler(router.handler.call));
+          .addMiddleware(
+            rateLimitMiddleware(
+              maxRequests: 2,
+              window: const Duration(minutes: 1),
+              keyExtractor: (_) => 'test-key',
+            ),
+          )
+          .addMiddleware(
+            globalExceptionMiddleware(
+              onError:
+                  (e, _) =>
+                      e is ApiException ? e : const ApiException(500, 'err'),
+            ),
+          );
+      final client = DartApiTestClient(
+        pipeline.addHandler(router.handler.call),
+      );
 
       expect((await client.get('/limited')).statusCode, 200);
       expect((await client.get('/limited')).statusCode, 200);
@@ -556,46 +598,54 @@ void main() {
     });
 
     test('timeout middleware returns 408 when handler is too slow', () async {
-      final router = RouterManager()
-        ..registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.get,
-            path: '/slow',
-            typedHandler: (req, _) async {
-              await Future<void>.delayed(const Duration(milliseconds: 200));
-              return 'too late';
-            },
-            summary: 's',
-          ),
-        ]));
-      final pipeline = const Pipeline()
-          .addMiddleware(timeoutMiddleware(const Duration(milliseconds: 50)));
-      final client =
-          DartApiTestClient(pipeline.addHandler(router.handler.call));
+      final router =
+          RouterManager()..registerController(
+            InlineController([
+              ApiRoute<void, String>(
+                method: ApiMethod.get,
+                path: '/slow',
+                typedHandler: (req, _) async {
+                  await Future<void>.delayed(const Duration(milliseconds: 200));
+                  return 'too late';
+                },
+                summary: 's',
+              ),
+            ]),
+          );
+      final pipeline = const Pipeline().addMiddleware(
+        timeoutMiddleware(const Duration(milliseconds: 50)),
+      );
+      final client = DartApiTestClient(
+        pipeline.addHandler(router.handler.call),
+      );
       final res = await client.get('/slow');
       expect(res.statusCode, 408);
     });
 
     test('backgroundTaskMiddleware makes backgroundTasks available', () async {
       var taskRan = false;
-      final router = RouterManager()
-        ..registerController(InlineController([
-          ApiRoute<void, String>(
-            method: ApiMethod.get,
-            path: '/bg',
-            typedHandler: (req, _) async {
-              req.backgroundTasks.add(() async {
-                taskRan = true;
-              });
-              return 'ok';
-            },
-            summary: 's',
-          ),
-        ]));
-      final pipeline = const Pipeline()
-          .addMiddleware(backgroundTaskMiddleware());
-      final client =
-          DartApiTestClient(pipeline.addHandler(router.handler.call));
+      final router =
+          RouterManager()..registerController(
+            InlineController([
+              ApiRoute<void, String>(
+                method: ApiMethod.get,
+                path: '/bg',
+                typedHandler: (req, _) async {
+                  req.backgroundTasks.add(() async {
+                    taskRan = true;
+                  });
+                  return 'ok';
+                },
+                summary: 's',
+              ),
+            ]),
+          );
+      final pipeline = const Pipeline().addMiddleware(
+        backgroundTaskMiddleware(),
+      );
+      final client = DartApiTestClient(
+        pipeline.addHandler(router.handler.call),
+      );
 
       await client.get('/bg');
       // Give the event loop a tick to run background tasks.
@@ -676,8 +726,9 @@ void main() {
 
       test('DEBUG can be forced true in production', () {
         expect(
-          AppConfig(environment: {'APP_ENV': 'production', 'DEBUG': 'true'})
-              .debug,
+          AppConfig(
+            environment: {'APP_ENV': 'production', 'DEBUG': 'true'},
+          ).debug,
           isTrue,
         );
       });
@@ -687,17 +738,11 @@ void main() {
       });
 
       test('logLevel is info in staging', () {
-        expect(
-          AppConfig(environment: {'APP_ENV': 'staging'}).logLevel,
-          'info',
-        );
+        expect(AppConfig(environment: {'APP_ENV': 'staging'}).logLevel, 'info');
       });
 
       test('logLevel is info in uat', () {
-        expect(
-          AppConfig(environment: {'APP_ENV': 'uat'}).logLevel,
-          'info',
-        );
+        expect(AppConfig(environment: {'APP_ENV': 'uat'}).logLevel, 'info');
       });
 
       test('logLevel is warn in production', () {
@@ -709,8 +754,9 @@ void main() {
 
       test('logLevel can be overridden via LOG_LEVEL', () {
         expect(
-          AppConfig(environment: {'APP_ENV': 'dev', 'LOG_LEVEL': 'error'})
-              .logLevel,
+          AppConfig(
+            environment: {'APP_ENV': 'dev', 'LOG_LEVEL': 'error'},
+          ).logLevel,
           'error',
         );
       });
@@ -748,10 +794,7 @@ void main() {
       });
 
       test('dbName defaults to app_dev in dev', () {
-        expect(
-          AppConfig(environment: {'APP_ENV': 'dev'}).dbName,
-          'app_dev',
-        );
+        expect(AppConfig(environment: {'APP_ENV': 'dev'}).dbName, 'app_dev');
       });
 
       test('dbName defaults to app_production in production', () {
@@ -762,10 +805,7 @@ void main() {
       });
 
       test('dbName reads DB_NAME', () {
-        expect(
-          AppConfig(environment: {'DB_NAME': 'mydb'}).dbName,
-          'mydb',
-        );
+        expect(AppConfig(environment: {'DB_NAME': 'mydb'}).dbName, 'mydb');
       });
 
       test('dbUser defaults to postgres', () {
@@ -788,10 +828,7 @@ void main() {
       });
 
       test('dbPoolSize reads DB_POOL_SIZE', () {
-        expect(
-          AppConfig(environment: {'DB_POOL_SIZE': '10'}).dbPoolSize,
-          10,
-        );
+        expect(AppConfig(environment: {'DB_POOL_SIZE': '10'}).dbPoolSize, 10);
       });
     });
 
@@ -898,7 +935,10 @@ void main() {
       test('does not print anything in dev', () {
         // Should not throw.
         expect(
-          () => AppConfig(environment: {'APP_ENV': 'dev'}).validateForProduction(),
+          () =>
+              AppConfig(
+                environment: {'APP_ENV': 'dev'},
+              ).validateForProduction(),
           returnsNormally,
         );
       });
@@ -906,20 +946,24 @@ void main() {
       test('does not throw even with dev secrets in production', () {
         // validateForProduction only prints — it does not throw.
         expect(
-          () => AppConfig(
-            environment: {'APP_ENV': 'production'},
-          ).validateForProduction(),
+          () =>
+              AppConfig(
+                environment: {'APP_ENV': 'production'},
+              ).validateForProduction(),
           returnsNormally,
         );
       });
 
       test('does not throw with real secrets in production', () {
         expect(
-          () => AppConfig(environment: {
-            'APP_ENV': 'production',
-            'JWT_ACCESS_SECRET': 'a-real-secret-value',
-            'JWT_REFRESH_SECRET': 'another-real-secret-value',
-          }).validateForProduction(),
+          () =>
+              AppConfig(
+                environment: {
+                  'APP_ENV': 'production',
+                  'JWT_ACCESS_SECRET': 'a-real-secret-value',
+                  'JWT_REFRESH_SECRET': 'another-real-secret-value',
+                },
+              ).validateForProduction(),
           returnsNormally,
         );
       });

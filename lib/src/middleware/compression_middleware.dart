@@ -34,9 +34,10 @@ Middleware compressionMiddleware({int threshold = 1024}) {
 
       final compressed = gzip.encode(bytes);
 
-      final headers = Map<String, String>.from(response.headers)
-        ..['content-encoding'] = 'gzip'
-        ..['content-length'] = compressed.length.toString();
+      final headers =
+          Map<String, String>.from(response.headers)
+            ..['content-encoding'] = 'gzip'
+            ..['content-length'] = compressed.length.toString();
 
       return response.change(body: compressed, headers: headers);
     };

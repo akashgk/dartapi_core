@@ -46,26 +46,41 @@ void main() {
     test('type error message uses friendly JSON type names', () {
       expect(
         () => <String, dynamic>{'x': 1}.verifyKey<String>('x'),
-        throwsA(isA<ApiException>()
-            .having((e) => e.message, 'message', contains('string'))),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            contains('string'),
+          ),
+        ),
       );
       expect(
         () => <String, dynamic>{'x': 'hi'}.verifyKey<bool>('x'),
-        throwsA(isA<ApiException>()
-            .having((e) => e.message, 'message', contains('boolean'))),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            contains('boolean'),
+          ),
+        ),
       );
     });
 
     test('throws ApiException 422 when validator fails', () {
       final map = {'email': 'not-an-email'};
       expect(
-        () => map.verifyKey<String>('email', validators: [
-          EmailValidator('Invalid email format'),
-        ]),
+        () => map.verifyKey<String>(
+          'email',
+          validators: [EmailValidator('Invalid email format')],
+        ),
         throwsA(
           isA<ApiException>()
               .having((e) => e.statusCode, 'statusCode', 422)
-              .having((e) => e.message, 'message', equals('Invalid email format')),
+              .having(
+                (e) => e.message,
+                'message',
+                equals('Invalid email format'),
+              ),
         ),
       );
     });
@@ -73,9 +88,10 @@ void main() {
     test('passes when validator succeeds', () {
       final map = {'email': 'user@example.com'};
       expect(
-        map.verifyKey<String>('email', validators: [
-          EmailValidator('Invalid email'),
-        ]),
+        map.verifyKey<String>(
+          'email',
+          validators: [EmailValidator('Invalid email')],
+        ),
         equals('user@example.com'),
       );
     });
@@ -83,10 +99,13 @@ void main() {
     test('runs multiple validators and fails on first failure', () {
       final map = {'email': 'bad'};
       expect(
-        () => map.verifyKey<String>('email', validators: [
-          EmailValidator('Invalid email'),
-        ]),
-        throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 422)),
+        () => map.verifyKey<String>(
+          'email',
+          validators: [EmailValidator('Invalid email')],
+        ),
+        throwsA(
+          isA<ApiException>().having((e) => e.statusCode, 'statusCode', 422),
+        ),
       );
     });
   });

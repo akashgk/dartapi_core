@@ -6,15 +6,13 @@ import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
 Request _req({bool gzipAccepted = true}) => Request(
-      'GET',
-      Uri.parse('http://localhost/test'),
-      headers: gzipAccepted ? {'Accept-Encoding': 'gzip, deflate'} : {},
-    );
+  'GET',
+  Uri.parse('http://localhost/test'),
+  headers: gzipAccepted ? {'Accept-Encoding': 'gzip, deflate'} : {},
+);
 
 Handler _makeHandler(String body, {int threshold = 0}) =>
-    compressionMiddleware(threshold: threshold)(
-      (req) => Response.ok(body),
-    );
+    compressionMiddleware(threshold: threshold)((req) => Response.ok(body));
 
 void main() {
   group('compressionMiddleware', () {
@@ -36,15 +34,18 @@ void main() {
       expect(res.headers['content-encoding'], isNull);
     });
 
-    test('body is still readable when below threshold (stream not consumed)', () async {
-      const body = 'tiny';
-      final handler = _makeHandler(body, threshold: 10000);
-      final res = await handler(_req());
-      // shelf_io reads the body after the handler returns — this must not throw
-      final bytes = await res.read().toList();
-      final decoded = utf8.decode(bytes.expand((b) => b).toList());
-      expect(decoded, equals(body));
-    });
+    test(
+      'body is still readable when below threshold (stream not consumed)',
+      () async {
+        const body = 'tiny';
+        final handler = _makeHandler(body, threshold: 10000);
+        final res = await handler(_req());
+        // shelf_io reads the body after the handler returns — this must not throw
+        final bytes = await res.read().toList();
+        final decoded = utf8.decode(bytes.expand((b) => b).toList());
+        expect(decoded, equals(body));
+      },
+    );
 
     test('compressed body can be decompressed back to original', () async {
       final original = 'Hello, DartAPI! ' * 50;
@@ -66,26 +67,29 @@ void main() {
     });
 
     test('does not re-compress already encoded responses', () async {
-      final preCompressed =
-          gzip.encode(utf8.encode('already compressed content'));
-      final h = compressionMiddleware(threshold: 0)((req) => Response.ok(
-            preCompressed,
-            headers: {'content-encoding': 'gzip'},
-          ));
+      final preCompressed = gzip.encode(
+        utf8.encode('already compressed content'),
+      );
+      final h = compressionMiddleware(threshold: 0)(
+        (req) =>
+            Response.ok(preCompressed, headers: {'content-encoding': 'gzip'}),
+      );
       final res = await h(_req());
       // content-encoding was already set — middleware should not touch it
       expect(res.headers['content-encoding'], equals('gzip'));
       // body should be the original compressed bytes (not double-compressed)
       final body = await res.read().toList();
       final flat = body.expand((b) => b).toList();
-      expect(utf8.decode(gzip.decode(flat)), equals('already compressed content'));
+      expect(
+        utf8.decode(gzip.decode(flat)),
+        equals('already compressed content'),
+      );
     });
 
     test('preserves other response headers', () async {
-      final h = compressionMiddleware(threshold: 0)((req) => Response.ok(
-            'x' * 200,
-            headers: {'X-Custom': 'my-value'},
-          ));
+      final h = compressionMiddleware(threshold: 0)(
+        (req) => Response.ok('x' * 200, headers: {'X-Custom': 'my-value'}),
+      );
       final res = await h(_req());
       expect(res.headers['x-custom'], equals('my-value'));
     });

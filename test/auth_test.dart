@@ -66,18 +66,15 @@ const _issuer = 'dartapi-test';
 const _audience = 'dartapi-users';
 
 JwtService _hs256({TokenStore? store}) => JwtService(
-      accessTokenSecret: _accessSecret,
-      refreshTokenSecret: _refreshSecret,
-      issuer: _issuer,
-      audience: _audience,
-      tokenStore: store,
-    );
+  accessTokenSecret: _accessSecret,
+  refreshTokenSecret: _refreshSecret,
+  issuer: _issuer,
+  audience: _audience,
+  tokenStore: store,
+);
 
-Request _request(String path, {Map<String, String>? headers}) => Request(
-      'GET',
-      Uri.parse('http://localhost$path'),
-      headers: headers ?? {},
-    );
+Request _request(String path, {Map<String, String>? headers}) =>
+    Request('GET', Uri.parse('http://localhost$path'), headers: headers ?? {});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TokenStore
@@ -173,7 +170,9 @@ void main() {
         final payload = await svc.verifyAccessToken(token);
         final exp = payload!['exp'] as int;
         expect(
-          DateTime.fromMillisecondsSinceEpoch(exp * 1000).isAfter(DateTime.now()),
+          DateTime.fromMillisecondsSinceEpoch(
+            exp * 1000,
+          ).isAfter(DateTime.now()),
           isTrue,
         );
       });
@@ -227,8 +226,9 @@ void main() {
       test('returns null for tampered payload', () async {
         final token = svc.generateAccessToken(claims: {'sub': 'u1'});
         final parts = token.split('.');
-        final fakePayload =
-            base64Url.encode(utf8.encode('{"sub":"hacker","type":"access"}'));
+        final fakePayload = base64Url.encode(
+          utf8.encode('{"sub":"hacker","type":"access"}'),
+        );
         expect(
           await svc.verifyAccessToken('${parts[0]}.$fakePayload.${parts[2]}'),
           isNull,
@@ -242,11 +242,13 @@ void main() {
           'iss': _issuer,
           'aud': _audience,
           'jti': 'x',
-          'iat': DateTime.now()
+          'iat':
+              DateTime.now()
                   .subtract(const Duration(hours: 2))
                   .millisecondsSinceEpoch ~/
               1000,
-          'exp': DateTime.now()
+          'exp':
+              DateTime.now()
                   .subtract(const Duration(hours: 1))
                   .millisecondsSinceEpoch ~/
               1000,
@@ -262,7 +264,8 @@ void main() {
           'aud': _audience,
           'jti': 'x',
           'iat': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          'exp': DateTime.now()
+          'exp':
+              DateTime.now()
                   .add(const Duration(hours: 1))
                   .millisecondsSinceEpoch ~/
               1000,
@@ -278,7 +281,8 @@ void main() {
           'aud': 'wrong-audience',
           'jti': 'x',
           'iat': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          'exp': DateTime.now()
+          'exp':
+              DateTime.now()
                   .add(const Duration(hours: 1))
                   .millisecondsSinceEpoch ~/
               1000,
@@ -287,8 +291,10 @@ void main() {
       });
 
       test('returns null for missing required claims', () async {
-        final token = JWT({'username': 'u', 'type': 'access'})
-            .sign(SecretKey(_accessSecret));
+        final token = JWT({
+          'username': 'u',
+          'type': 'access',
+        }).sign(SecretKey(_accessSecret));
         expect(await svc.verifyAccessToken(token), isNull);
       });
 
@@ -370,15 +376,18 @@ void main() {
     });
 
     group('refresh token rotation', () {
-      test('first use succeeds, second use rejected (tokenStore present)', () async {
-        final store = InMemoryTokenStore();
-        final svc = _hs256(store: store);
-        final access = svc.generateAccessToken(claims: {'sub': 'u1'});
-        final refresh = svc.generateRefreshToken(accessToken: access);
+      test(
+        'first use succeeds, second use rejected (tokenStore present)',
+        () async {
+          final store = InMemoryTokenStore();
+          final svc = _hs256(store: store);
+          final access = svc.generateAccessToken(claims: {'sub': 'u1'});
+          final refresh = svc.generateRefreshToken(accessToken: access);
 
-        expect(await svc.verifyRefreshToken(refresh), isNotNull);
-        expect(await svc.verifyRefreshToken(refresh), isNull); // rotated
-      });
+          expect(await svc.verifyRefreshToken(refresh), isNotNull);
+          expect(await svc.verifyRefreshToken(refresh), isNull); // rotated
+        },
+      );
 
       test('without tokenStore refresh token can be reused', () async {
         final svc = _hs256();
@@ -398,11 +407,13 @@ void main() {
             (_) => Future(() => svc.generateAccessToken(claims: {'sub': 'u1'})),
           ),
         );
-        final payloads =
-            await Future.wait(tokens.map(svc.verifyAccessToken));
+        final payloads = await Future.wait(tokens.map(svc.verifyAccessToken));
         final jtis = payloads.map((p) => p!['jti'] as String).toList();
-        expect(jtis.toSet().length, jtis.length,
-            reason: 'All 1000 JTIs must be unique');
+        expect(
+          jtis.toSet().length,
+          jtis.length,
+          reason: 'All 1000 JTIs must be unique',
+        );
       });
     });
   });
@@ -504,7 +515,9 @@ void main() {
         capturedUser = req.context['user'] as Map<String, dynamic>?;
         return Response.ok('ok');
       });
-      await handler(_request('/x', headers: {'Authorization': 'Bearer $token'}));
+      await handler(
+        _request('/x', headers: {'Authorization': 'Bearer $token'}),
+      );
       expect(capturedUser, isNotNull);
       expect(capturedUser!['sub'], 'u42');
       expect(capturedUser!['role'], 'admin');
@@ -519,7 +532,10 @@ void main() {
 
     test('returns 403 when token is invalid', () async {
       final res = await protected(
-        _request('/secure', headers: {'Authorization': 'Bearer bad.token.here'}),
+        _request(
+          '/secure',
+          headers: {'Authorization': 'Bearer bad.token.here'},
+        ),
       );
       expect(res.statusCode, 403);
       final body = jsonDecode(await res.readAsString()) as Map;
@@ -533,11 +549,13 @@ void main() {
         'iss': _issuer,
         'aud': _audience,
         'jti': 'x',
-        'iat': DateTime.now()
+        'iat':
+            DateTime.now()
                 .subtract(const Duration(hours: 2))
                 .millisecondsSinceEpoch ~/
             1000,
-        'exp': DateTime.now()
+        'exp':
+            DateTime.now()
                 .subtract(const Duration(hours: 1))
                 .millisecondsSinceEpoch ~/
             1000,
@@ -551,7 +569,8 @@ void main() {
     test('returns 403 when token is tampered', () async {
       final token = svc.generateAccessToken(claims: {'sub': 'u1'});
       final parts = token.split('.');
-      final tampered = '${parts[0]}.${base64Url.encode(utf8.encode('{}'))}.${parts[2]}';
+      final tampered =
+          '${parts[0]}.${base64Url.encode(utf8.encode('{}'))}.${parts[2]}';
       final res = await protected(
         _request('/secure', headers: {'Authorization': 'Bearer $tampered'}),
       );
@@ -640,9 +659,7 @@ void main() {
     });
 
     test('returns 401 for empty API key', () async {
-      final res = await handler(
-        _request('/api', headers: {'X-API-Key': ''}),
-      );
+      final res = await handler(_request('/api', headers: {'X-API-Key': ''}));
       expect(res.statusCode, 401);
     });
 

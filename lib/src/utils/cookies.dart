@@ -49,9 +49,10 @@ Response setCookie(
 
   final existing = response.headers['set-cookie'];
   final cookieValue = parts.join('; ');
-  final newHeaders = existing != null
-      ? {'set-cookie': '$existing\n$cookieValue'}
-      : {'set-cookie': cookieValue};
+  final newHeaders =
+      existing != null
+          ? {'set-cookie': '$existing\n$cookieValue'}
+          : {'set-cookie': cookieValue};
 
   return response.change(headers: newHeaders);
 }

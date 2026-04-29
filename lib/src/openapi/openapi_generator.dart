@@ -45,16 +45,17 @@ class OpenApiGenerator {
       // Path parameters inferred from the path pattern.
       final pathParams = _extractPathParams(route.path);
       if (pathParams.isNotEmpty) {
-        operation['parameters'] = pathParams
-            .map(
-              (p) => {
-                'name': p,
-                'in': 'path',
-                'required': true,
-                'schema': {'type': 'string'},
-              },
-            )
-            .toList();
+        operation['parameters'] =
+            pathParams
+                .map(
+                  (p) => {
+                    'name': p,
+                    'in': 'path',
+                    'required': true,
+                    'schema': {'type': 'string'},
+                  },
+                )
+                .toList();
       }
 
       // Request body.
@@ -69,12 +70,13 @@ class OpenApiGenerator {
 
       // Security.
       if (route.security.isNotEmpty) {
-        operation['security'] = route.security.map((s) {
-          if (s == SecurityScheme.bearer) {
-            return {'bearerAuth': <String>[]};
-          }
-          return <String, dynamic>{};
-        }).toList();
+        operation['security'] =
+            route.security.map((s) {
+              if (s == SecurityScheme.bearer) {
+                return {'bearerAuth': <String>[]};
+              }
+              return <String, dynamic>{};
+            }).toList();
       }
 
       // Response.
@@ -130,14 +132,14 @@ List<String> _extractPathParams(String path) =>
     RegExp(r'<(\w+)>').allMatches(path).map((m) => m[1]!).toList();
 
 String _statusDescription(int code) => switch (code) {
-      200 => 'Success',
-      201 => 'Created',
-      204 => 'No Content',
-      400 => 'Bad Request',
-      401 => 'Unauthorized',
-      403 => 'Forbidden',
-      404 => 'Not Found',
-      422 => 'Unprocessable Entity',
-      500 => 'Internal Server Error',
-      _ => 'Response',
-    };
+  200 => 'Success',
+  201 => 'Created',
+  204 => 'No Content',
+  400 => 'Bad Request',
+  401 => 'Unauthorized',
+  403 => 'Forbidden',
+  404 => 'Not Found',
+  422 => 'Unprocessable Entity',
+  500 => 'Internal Server Error',
+  _ => 'Response',
+};

@@ -5,10 +5,10 @@ import 'package:test/test.dart';
 void main() {
   group('CookieRequestExtensions', () {
     Request makeReq({String cookieHeader = ''}) => Request(
-          'GET',
-          Uri.parse('http://localhost/'),
-          headers: cookieHeader.isNotEmpty ? {'cookie': cookieHeader} : {},
-        );
+      'GET',
+      Uri.parse('http://localhost/'),
+      headers: cookieHeader.isNotEmpty ? {'cookie': cookieHeader} : {},
+    );
 
     test('parses single cookie', () {
       final req = makeReq(cookieHeader: 'session=abc123');

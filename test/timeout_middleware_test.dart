@@ -2,7 +2,8 @@ import 'package:dartapi_core/dartapi_core.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
-Request _req([String path = '/']) => Request('GET', Uri.parse('http://localhost$path'));
+Request _req([String path = '/']) =>
+    Request('GET', Uri.parse('http://localhost$path'));
 
 void main() {
   group('timeoutMiddleware', () {
@@ -19,9 +20,9 @@ void main() {
       final handler = Pipeline()
           .addMiddleware(timeoutMiddleware(const Duration(milliseconds: 50)))
           .addHandler((_) async {
-        await Future.delayed(const Duration(milliseconds: 200));
-        return Response.ok('too late');
-      });
+            await Future.delayed(const Duration(milliseconds: 200));
+            return Response.ok('too late');
+          });
 
       final res = await handler(_req());
       expect(res.statusCode, equals(408));
@@ -33,9 +34,9 @@ void main() {
       final handler = Pipeline()
           .addMiddleware(timeoutMiddleware(const Duration(milliseconds: 50)))
           .addHandler((_) async {
-        await Future.delayed(const Duration(milliseconds: 200));
-        return Response.ok('too late');
-      });
+            await Future.delayed(const Duration(milliseconds: 200));
+            return Response.ok('too late');
+          });
 
       final res = await handler(_req());
       expect(res.headers['content-type'], contains('application/json'));

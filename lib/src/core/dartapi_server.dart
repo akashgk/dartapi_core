@@ -200,20 +200,24 @@ class DartAPI {
 
     var pipeline = const Pipeline()
         .addMiddleware(requestIdMiddleware())
-        .addMiddleware(globalExceptionMiddleware(
-          onError: (error, stackTrace) {
-            log('[$appName] Unhandled error: $error\n$stackTrace');
-            if (error is ApiException) return error;
-            return const ApiException(500, 'Internal Server Error');
-          },
-        ));
+        .addMiddleware(
+          globalExceptionMiddleware(
+            onError: (error, stackTrace) {
+              log('[$appName] Unhandled error: $error\n$stackTrace');
+              if (error is ApiException) return error;
+              return const ApiException(500, 'Internal Server Error');
+            },
+          ),
+        );
 
     if (_rateLimitMaxRequests != null) {
-      pipeline = pipeline.addMiddleware(rateLimitMiddleware(
-        maxRequests: _rateLimitMaxRequests!,
-        window: _rateLimitWindow!,
-        keyExtractor: _rateLimitKeyExtractor,
-      ));
+      pipeline = pipeline.addMiddleware(
+        rateLimitMiddleware(
+          maxRequests: _rateLimitMaxRequests!,
+          window: _rateLimitWindow!,
+          keyExtractor: _rateLimitKeyExtractor,
+        ),
+      );
     }
 
     if (_requestTimeout != null) {
@@ -226,17 +230,22 @@ class DartAPI {
 
     pipeline = pipeline
         .addMiddleware(loggingMiddleware())
-        .addMiddleware(corsHeaders(headers: {
-          ACCESS_CONTROL_ALLOW_ORIGIN: corsOrigin,
-          ACCESS_CONTROL_ALLOW_METHODS:
-              'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-          ACCESS_CONTROL_ALLOW_HEADERS:
-              'Authorization, Content-Type, X-Request-Id',
-        }));
+        .addMiddleware(
+          corsHeaders(
+            headers: {
+              ACCESS_CONTROL_ALLOW_ORIGIN: corsOrigin,
+              ACCESS_CONTROL_ALLOW_METHODS:
+                  'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+              ACCESS_CONTROL_ALLOW_HEADERS:
+                  'Authorization, Content-Type, X-Request-Id',
+            },
+          ),
+        );
 
     if (_compressionEnabled) {
-      pipeline = pipeline
-          .addMiddleware(compressionMiddleware(threshold: _compressionThreshold));
+      pipeline = pipeline.addMiddleware(
+        compressionMiddleware(threshold: _compressionThreshold),
+      );
     }
 
     if (_metricsEnabled) {

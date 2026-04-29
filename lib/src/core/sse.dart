@@ -9,12 +9,7 @@ class SseEvent {
   final String? event;
   final Duration? retry;
 
-  const SseEvent({
-    required this.data,
-    this.id,
-    this.event,
-    this.retry,
-  });
+  const SseEvent({required this.data, this.id, this.event, this.retry});
 
   /// Formats the event according to the SSE wire format.
   String format() {

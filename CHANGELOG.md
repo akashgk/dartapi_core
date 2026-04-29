@@ -1,3 +1,22 @@
+## 0.1.4
+
+**Milestone 1 — Schema-Validation Sync (`FieldSet`).**
+
+- Add `Field<T>` — describes a single DTO field: Dart type (mapped to JSON Schema `type`), `required` flag, validators list, optional `example` and `description`.
+- Add `FieldSet` — a declarative map of `Field`s that provides:
+  - `validate(Map<String, dynamic> json)` — collects ALL field errors before throwing a single `ValidationException`, replacing the need for manual `validateAll` boilerplate.
+  - `toJsonSchema()` — derives a complete OpenAPI-compatible JSON Schema (`type: object`, `properties`, `required` array, `nullable` for optional fields) directly from the field declarations.
+- Add `toSchemaProperties()` to every built-in validator so schema constraints come from the same source as validation rules:
+  - `EmailValidator` → `{format: email}`. Constructor message is now optional (default: `'Invalid email address'`).
+  - `MinLengthValidator(n)` → `{minLength: n}`
+  - `MaxLengthValidator(n)` → `{maxLength: n}`
+  - `NotEmptyValidator` → `{minLength: 1}`
+  - `RangeValidator(min, max)` → `{minimum, maximum}`
+  - `PatternValidator` → `{pattern}`
+  - `UrlValidator` → `{format: uri}`
+- Export `Field` and `FieldSet` from the `dartapi_core` barrel.
+- 37 new tests in `test/field_set_test.dart` (515 total).
+
 ## 0.1.3
 
 - Add comprehensive Books API example (`example/dartapi_core_example.dart`) demonstrating `DartAPI`, `ServiceRegistry`, `JwtService`, `authMiddleware`, `InMemoryTokenStore`, `BaseController`, `ApiRoute`, `InlineController`, `Pagination`, `PaginatedResponse`, `ApiException`, background tasks, per-route caching, health check, Prometheus metrics, and Swagger UI — all in a single runnable file.

@@ -57,8 +57,7 @@ void main() {
         SseEvent(data: 'second', event: 'update'),
       ]);
       final res = sseResponse(events);
-      final body =
-          await res.read().expand((b) => b).toList().then(utf8.decode);
+      final body = await res.read().expand((b) => b).toList().then(utf8.decode);
       expect(body, contains('data: first'));
       expect(body, contains('event: update'));
     });

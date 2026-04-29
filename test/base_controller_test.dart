@@ -8,18 +8,18 @@ import 'package:test/test.dart';
 class _UserController extends BaseController {
   @override
   List<ApiRoute> get routes => [
-        ApiRoute<void, String>(
-          method: ApiMethod.get,
-          path: '/users',
-          typedHandler: (req, _) async => 'all users',
-        ),
-        ApiRoute<void, String>(
-          method: ApiMethod.post,
-          path: '/users',
-          statusCode: 201,
-          typedHandler: (req, _) async => 'created',
-        ),
-      ];
+    ApiRoute<void, String>(
+      method: ApiMethod.get,
+      path: '/users',
+      typedHandler: (req, _) async => 'all users',
+    ),
+    ApiRoute<void, String>(
+      method: ApiMethod.post,
+      path: '/users',
+      statusCode: 201,
+      typedHandler: (req, _) async => 'created',
+    ),
+  ];
 }
 
 class _EmptyController extends BaseController {

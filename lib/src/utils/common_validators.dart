@@ -2,31 +2,40 @@ import 'validator.dart';
 
 /// Validates that a string matches a valid email format.
 class EmailValidator extends Validators<String> {
-  EmailValidator(super.validationErrorMessage);
+  EmailValidator([super.validationErrorMessage = 'Invalid email address']);
   final _emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
 
   @override
   bool validate(dynamic value) => _emailRegex.hasMatch(value as String);
+
+  @override
+  Map<String, dynamic> toSchemaProperties() => const {'format': 'email'};
 }
 
 /// Validates that a string has at least [min] characters.
 class MinLengthValidator extends Validators<String> {
   final int min;
   MinLengthValidator(this.min, [String? message])
-      : super(message ?? 'Must be at least $min characters');
+    : super(message ?? 'Must be at least $min characters');
 
   @override
   bool validate(dynamic value) => (value as String).length >= min;
+
+  @override
+  Map<String, dynamic> toSchemaProperties() => {'minLength': min};
 }
 
 /// Validates that a string has at most [max] characters.
 class MaxLengthValidator extends Validators<String> {
   final int max;
   MaxLengthValidator(this.max, [String? message])
-      : super(message ?? 'Must be at most $max characters');
+    : super(message ?? 'Must be at most $max characters');
 
   @override
   bool validate(dynamic value) => (value as String).length <= max;
+
+  @override
+  Map<String, dynamic> toSchemaProperties() => {'maxLength': max};
 }
 
 /// Validates that a string is not blank (empty or whitespace-only).
@@ -35,6 +44,9 @@ class NotEmptyValidator extends Validators<String> {
 
   @override
   bool validate(dynamic value) => (value as String).trim().isNotEmpty;
+
+  @override
+  Map<String, dynamic> toSchemaProperties() => const {'minLength': 1};
 }
 
 /// Validates that a number falls within an optional [min] and [max] range (inclusive).
@@ -43,7 +55,7 @@ class RangeValidator<T extends num> extends Validators<T> {
   final T? max;
 
   RangeValidator({this.min, this.max, String? message})
-      : super(message ?? _buildMessage(min, max));
+    : super(message ?? _buildMessage(min, max));
 
   static String _buildMessage(num? min, num? max) {
     if (min != null && max != null) return 'Must be between $min and $max';
@@ -56,6 +68,12 @@ class RangeValidator<T extends num> extends Validators<T> {
     final n = value as T;
     return (min == null || n >= min!) && (max == null || n <= max!);
   }
+
+  @override
+  Map<String, dynamic> toSchemaProperties() => {
+    if (min != null) 'minimum': min,
+    if (max != null) 'maximum': max,
+  };
 }
 
 /// Validates that a string matches the given [pattern].
@@ -65,6 +83,9 @@ class PatternValidator extends Validators<String> {
 
   @override
   bool validate(dynamic value) => pattern.hasMatch(value as String);
+
+  @override
+  Map<String, dynamic> toSchemaProperties() => {'pattern': pattern.pattern};
 }
 
 /// Validates that a string is a well-formed absolute URL (http or https).
@@ -81,4 +102,7 @@ class UrlValidator extends Validators<String> {
       return false;
     }
   }
+
+  @override
+  Map<String, dynamic> toSchemaProperties() => const {'format': 'uri'};
 }

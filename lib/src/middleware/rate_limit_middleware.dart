@@ -37,13 +37,14 @@ Middleware rateLimitMiddleware({
 
   return (Handler inner) {
     return (Request request) async {
-      final key = keyExtractor != null
-          ? keyExtractor(request)
-          : _clientIp(request);
+      final key =
+          keyExtractor != null ? keyExtractor(request) : _clientIp(request);
 
       final now = DateTime.now();
-      final bucket =
-          buckets.putIfAbsent(key, () => _Bucket(maxRequests, now, window));
+      final bucket = buckets.putIfAbsent(
+        key,
+        () => _Bucket(maxRequests, now, window),
+      );
 
       if (now.isAfter(bucket.windowEnd)) {
         bucket
@@ -52,8 +53,7 @@ Middleware rateLimitMiddleware({
       }
 
       if (bucket.tokens <= 0) {
-        final retryAfterSeconds =
-            bucket.windowEnd.difference(now).inSeconds;
+        final retryAfterSeconds = bucket.windowEnd.difference(now).inSeconds;
         final retryAfter = retryAfterSeconds > 0 ? retryAfterSeconds : 1;
         return Response(
           429,
@@ -72,13 +72,15 @@ Middleware rateLimitMiddleware({
       bucket.tokens--;
 
       final response = await inner(request);
-      return response.change(headers: {
-        ...response.headersAll.map((k, v) => MapEntry(k, v.join(','))),
-        'X-RateLimit-Limit': maxRequests.toString(),
-        'X-RateLimit-Remaining': bucket.tokens.toString(),
-        'X-RateLimit-Reset':
-            bucket.windowEnd.millisecondsSinceEpoch.toString(),
-      });
+      return response.change(
+        headers: {
+          ...response.headersAll.map((k, v) => MapEntry(k, v.join(','))),
+          'X-RateLimit-Limit': maxRequests.toString(),
+          'X-RateLimit-Remaining': bucket.tokens.toString(),
+          'X-RateLimit-Reset':
+              bucket.windowEnd.millisecondsSinceEpoch.toString(),
+        },
+      );
     };
   };
 }
@@ -87,7 +89,7 @@ class _Bucket {
   int tokens;
   DateTime windowEnd;
   _Bucket(this.tokens, DateTime start, Duration window)
-      : windowEnd = start.add(window);
+    : windowEnd = start.add(window);
 }
 
 String _clientIp(Request request) =>

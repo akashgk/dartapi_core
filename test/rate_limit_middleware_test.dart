@@ -8,18 +8,17 @@ Handler _makeHandler({
   int maxRequests = 3,
   Duration window = const Duration(minutes: 1),
   String Function(Request)? keyExtractor,
-}) =>
-    rateLimitMiddleware(
-      maxRequests: maxRequests,
-      window: window,
-      keyExtractor: keyExtractor,
-    )((req) => Response.ok('ok'));
+}) => rateLimitMiddleware(
+  maxRequests: maxRequests,
+  window: window,
+  keyExtractor: keyExtractor,
+)((req) => Response.ok('ok'));
 
 Request _req({String ip = '1.2.3.4'}) => Request(
-      'GET',
-      Uri.parse('http://localhost/test'),
-      headers: {'X-Forwarded-For': ip},
-    );
+  'GET',
+  Uri.parse('http://localhost/test'),
+  headers: {'X-Forwarded-For': ip},
+);
 
 void main() {
   group('rateLimitMiddleware', () {
@@ -67,8 +66,10 @@ void main() {
       final handler = _makeHandler(maxRequests: 3);
       final r1 = await handler(_req());
       final r2 = await handler(_req());
-      expect(int.parse(r1.headers['x-ratelimit-remaining']!),
-          greaterThan(int.parse(r2.headers['x-ratelimit-remaining']!)));
+      expect(
+        int.parse(r1.headers['x-ratelimit-remaining']!),
+        greaterThan(int.parse(r2.headers['x-ratelimit-remaining']!)),
+      );
     });
 
     test('different IPs have independent buckets', () async {

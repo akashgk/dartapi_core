@@ -52,10 +52,12 @@ class JwtService {
     this.refreshTokenExpiry = const Duration(days: 7),
     this.algorithm = JWTAlgorithm.HS256,
     this.tokenStore,
-  })  : accessTokenSecret = accessTokenSecret, // ignore: prefer_initializing_formals
-        refreshTokenSecret = refreshTokenSecret, // ignore: prefer_initializing_formals
-        privateKeyPem = null,
-        publicKeyPem = null;
+  }) : accessTokenSecret =
+           accessTokenSecret, // ignore: prefer_initializing_formals
+       refreshTokenSecret =
+           refreshTokenSecret, // ignore: prefer_initializing_formals
+       privateKeyPem = null,
+       publicKeyPem = null;
 
   /// Creates a [JwtService] using RS256 (RSA-SHA256) asymmetric keys.
   ///
@@ -80,31 +82,35 @@ class JwtService {
     this.accessTokenExpiry = const Duration(hours: 1),
     this.refreshTokenExpiry = const Duration(days: 7),
     this.tokenStore,
-  })  : algorithm = JWTAlgorithm.RS256,
-        privateKeyPem = privateKeyPem, // ignore: prefer_initializing_formals
-        publicKeyPem = publicKeyPem, // ignore: prefer_initializing_formals
-        accessTokenSecret = null,
-        refreshTokenSecret = null;
+  }) : algorithm = JWTAlgorithm.RS256,
+       privateKeyPem = privateKeyPem, // ignore: prefer_initializing_formals
+       publicKeyPem = publicKeyPem, // ignore: prefer_initializing_formals
+       accessTokenSecret = null,
+       refreshTokenSecret = null;
 
   // ---------------------------------------------------------------------------
   // Internal key helpers
   // ---------------------------------------------------------------------------
 
-  JWTKey get _signKey => privateKeyPem != null
-      ? RSAPrivateKey(privateKeyPem!)
-      : SecretKey(accessTokenSecret!);
+  JWTKey get _signKey =>
+      privateKeyPem != null
+          ? RSAPrivateKey(privateKeyPem!)
+          : SecretKey(accessTokenSecret!);
 
-  JWTKey get _accessVerifyKey => publicKeyPem != null
-      ? RSAPublicKey(publicKeyPem!)
-      : SecretKey(accessTokenSecret!);
+  JWTKey get _accessVerifyKey =>
+      publicKeyPem != null
+          ? RSAPublicKey(publicKeyPem!)
+          : SecretKey(accessTokenSecret!);
 
-  JWTKey get _refreshSignKey => privateKeyPem != null
-      ? RSAPrivateKey(privateKeyPem!)
-      : SecretKey(refreshTokenSecret!);
+  JWTKey get _refreshSignKey =>
+      privateKeyPem != null
+          ? RSAPrivateKey(privateKeyPem!)
+          : SecretKey(refreshTokenSecret!);
 
-  JWTKey get _refreshVerifyKey => publicKeyPem != null
-      ? RSAPublicKey(publicKeyPem!)
-      : SecretKey(refreshTokenSecret!);
+  JWTKey get _refreshVerifyKey =>
+      publicKeyPem != null
+          ? RSAPublicKey(publicKeyPem!)
+          : SecretKey(refreshTokenSecret!);
 
   // ---------------------------------------------------------------------------
   // Token generation
@@ -121,8 +127,8 @@ class JwtService {
       'aud': audience,
       'type': 'access',
       'iat': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      'exp': DateTime.now().add(accessTokenExpiry).millisecondsSinceEpoch ~/
-          1000,
+      'exp':
+          DateTime.now().add(accessTokenExpiry).millisecondsSinceEpoch ~/ 1000,
       ...claims,
     };
     return JWT(payload).sign(_signKey, algorithm: algorithm);
@@ -141,8 +147,8 @@ class JwtService {
       'type': 'refresh',
       'jti': _generateUniqueTokenId(),
       'iat': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      'exp': DateTime.now().add(refreshTokenExpiry).millisecondsSinceEpoch ~/
-          1000,
+      'exp':
+          DateTime.now().add(refreshTokenExpiry).millisecondsSinceEpoch ~/ 1000,
     };
     return JWT(newPayload).sign(_refreshSignKey, algorithm: algorithm);
   }
@@ -192,9 +198,11 @@ class JwtService {
     try {
       final parts = token.split('.');
       if (parts.length != 3) return;
-      final payload = jsonDecode(
-        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
-      ) as Map<String, dynamic>;
+      final payload =
+          jsonDecode(
+                utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+              )
+              as Map<String, dynamic>;
       final jti = payload['jti'] as String?;
       if (jti != null) await tokenStore!.revoke(jti);
     } catch (_) {}

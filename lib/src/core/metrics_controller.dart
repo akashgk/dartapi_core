@@ -17,16 +17,16 @@ import '../middleware/metrics_middleware.dart';
 class MetricsController extends BaseController {
   @override
   List<ApiRoute> get routes => [
-        ApiRoute<void, String>(
-          method: ApiMethod.get,
-          path: '/metrics',
-          typedHandler: _handle,
-          contentType: 'text/plain; version=0.0.4; charset=utf-8',
-          summary: 'Prometheus metrics',
-          description:
-              'Returns request counters and latency histograms in Prometheus text format.',
-        ),
-      ];
+    ApiRoute<void, String>(
+      method: ApiMethod.get,
+      path: '/metrics',
+      typedHandler: _handle,
+      contentType: 'text/plain; version=0.0.4; charset=utf-8',
+      summary: 'Prometheus metrics',
+      description:
+          'Returns request counters and latency histograms in Prometheus text format.',
+    ),
+  ];
 
   Future<String> _handle(Request req, void _) async =>
       MetricsRegistry.instance.serialize();

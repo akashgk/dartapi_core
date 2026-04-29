@@ -2,11 +2,8 @@ import 'package:dartapi_core/dartapi_core.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
-Request _req({Map<String, String>? headers}) => Request(
-      'GET',
-      Uri.parse('http://localhost/test'),
-      headers: headers ?? {},
-    );
+Request _req({Map<String, String>? headers}) =>
+    Request('GET', Uri.parse('http://localhost/test'), headers: headers ?? {});
 
 void main() {
   group('requestIdMiddleware', () {
@@ -23,8 +20,9 @@ void main() {
     });
 
     test('propagates existing X-Request-Id from request', () async {
-      final res =
-          await handler(_req(headers: {'X-Request-Id': 'my-trace-123'}));
+      final res = await handler(
+        _req(headers: {'X-Request-Id': 'my-trace-123'}),
+      );
       expect(res.headers['x-request-id'], equals('my-trace-123'));
     });
 
@@ -68,8 +66,9 @@ void main() {
     });
 
     test('does not overwrite existing headers on response', () async {
-      final h = requestIdMiddleware()((req) =>
-          Response.ok('ok', headers: {'X-Custom': 'value'}));
+      final h = requestIdMiddleware()(
+        (req) => Response.ok('ok', headers: {'X-Custom': 'value'}),
+      );
       final res = await h(_req());
       expect(res.headers['x-custom'], equals('value'));
       expect(res.headers['x-request-id'], isNotNull);

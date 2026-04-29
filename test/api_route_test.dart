@@ -147,7 +147,8 @@ void main() {
       final route = ApiRoute<void, String>(
         method: ApiMethod.get,
         path: '/users/99',
-        typedHandler: (req, _) async => throw ApiException(404, 'User not found'),
+        typedHandler:
+            (req, _) async => throw ApiException(404, 'User not found'),
       );
 
       final response = await route.handler(
@@ -232,11 +233,11 @@ void main() {
         path: '/mw',
         middlewares: [
           (inner) => (req) async {
-                log.add('before');
-                final res = await inner(req);
-                log.add('after');
-                return res;
-              },
+            log.add('before');
+            final res = await inner(req);
+            log.add('after');
+            return res;
+          },
         ],
         typedHandler: (req, _) async {
           log.add('handler');
@@ -244,7 +245,9 @@ void main() {
         },
       );
 
-      await buildHandler(route)(Request('GET', Uri.parse('http://localhost/mw')));
+      await buildHandler(route)(
+        Request('GET', Uri.parse('http://localhost/mw')),
+      );
       expect(log, equals(['before', 'handler', 'after']));
     });
 
@@ -252,9 +255,7 @@ void main() {
       final route = ApiRoute<void, String>(
         method: ApiMethod.get,
         path: '/guarded',
-        middlewares: [
-          (_) => (_) async => Response.forbidden('no access'),
-        ],
+        middlewares: [(_) => (_) async => Response.forbidden('no access')],
         typedHandler: (req, _) async => 'should not reach',
       );
 
@@ -273,17 +274,17 @@ void main() {
         path: '/multi',
         middlewares: [
           (inner) => (req) async {
-                log.add('mw1-in');
-                final res = await inner(req);
-                log.add('mw1-out');
-                return res;
-              },
+            log.add('mw1-in');
+            final res = await inner(req);
+            log.add('mw1-out');
+            return res;
+          },
           (inner) => (req) async {
-                log.add('mw2-in');
-                final res = await inner(req);
-                log.add('mw2-out');
-                return res;
-              },
+            log.add('mw2-in');
+            final res = await inner(req);
+            log.add('mw2-out');
+            return res;
+          },
         ],
         typedHandler: (req, _) async {
           log.add('handler');
@@ -296,7 +297,10 @@ void main() {
       );
       // Middlewares are wrapped in list order so the last one is outermost.
       // Execution: mw2 (outer) → mw1 (inner) → handler → mw1 → mw2.
-      expect(log, equals(['mw2-in', 'mw1-in', 'handler', 'mw1-out', 'mw2-out']));
+      expect(
+        log,
+        equals(['mw2-in', 'mw1-in', 'handler', 'mw1-out', 'mw2-out']),
+      );
     });
 
     test('middleware can add response headers', () async {
@@ -305,9 +309,9 @@ void main() {
         path: '/headers',
         middlewares: [
           (inner) => (req) async {
-                final res = await inner(req);
-                return res.change(headers: {'x-custom': 'yes'});
-              },
+            final res = await inner(req);
+            return res.change(headers: {'x-custom': 'yes'});
+          },
         ],
         typedHandler: (req, _) async => 'ok',
       );
@@ -367,9 +371,9 @@ void main() {
         cacheTtl: const Duration(minutes: 1),
         middlewares: [
           (inner) => (req) async {
-                log.add('mw');
-                return inner(req);
-              },
+            log.add('mw');
+            return inner(req);
+          },
         ],
         typedHandler: (req, _) async {
           log.add('handler');

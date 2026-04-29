@@ -24,11 +24,16 @@ class Pagination {
     int defaultLimit = 20,
     int maxLimit = 100,
   }) {
-    final page =
-        (request.queryParam<int>('page', defaultValue: 1) ?? 1).clamp(1, 1 << 30);
-    final limit =
-        (request.queryParam<int>('limit', defaultValue: defaultLimit) ?? defaultLimit)
-            .clamp(1, maxLimit);
+    final page = (request.queryParam<int>('page', defaultValue: 1) ?? 1).clamp(
+      1,
+      1 << 30,
+    );
+    final limit = (request.queryParam<int>(
+              'limit',
+              defaultValue: defaultLimit,
+            ) ??
+            defaultLimit)
+        .clamp(1, maxLimit);
     return Pagination(page: page, limit: limit);
   }
 
@@ -70,16 +75,17 @@ class PaginatedResponse implements Serializable {
 
   @override
   Map<String, dynamic> toJson() => {
-        'data': data
+    'data':
+        data
             .map((item) => item is Serializable ? item.toJson() : item)
             .toList(),
-        'meta': {
-          'page': pagination.page,
-          'limit': pagination.limit,
-          'total': total,
-          'totalPages': totalPages,
-          'hasNext': hasNext,
-          'hasPrev': hasPrev,
-        },
-      };
+    'meta': {
+      'page': pagination.page,
+      'limit': pagination.limit,
+      'total': total,
+      'totalPages': totalPages,
+      'hasNext': hasNext,
+      'hasPrev': hasPrev,
+    },
+  };
 }

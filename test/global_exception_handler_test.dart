@@ -7,7 +7,8 @@ void main() {
     Handler buildHandler(Handler inner) {
       return globalExceptionMiddleware(
         onError: (error, _) {
-          if (error is StateError) return ApiException(503, 'Service unavailable');
+          if (error is StateError)
+            return ApiException(503, 'Service unavailable');
           return ApiException(500, 'Internal error');
         },
       )(inner);

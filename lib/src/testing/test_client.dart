@@ -57,7 +57,7 @@ class DartApiTestClient {
   /// [defaultHeaders] are merged into every request — useful for setting
   /// `Authorization: Bearer …` once for an entire test suite.
   DartApiTestClient(this._handler, {Map<String, String>? defaultHeaders})
-      : _defaultHeaders = defaultHeaders ?? {};
+    : _defaultHeaders = defaultHeaders ?? {};
 
   Future<TestResponse> get(String path, {Map<String, String>? headers}) =>
       _send('GET', path, headers: headers);
@@ -66,28 +66,22 @@ class DartApiTestClient {
     String path, {
     Object? body,
     Map<String, String>? headers,
-  }) =>
-      _send('POST', path, body: body, headers: headers);
+  }) => _send('POST', path, body: body, headers: headers);
 
   Future<TestResponse> put(
     String path, {
     Object? body,
     Map<String, String>? headers,
-  }) =>
-      _send('PUT', path, body: body, headers: headers);
+  }) => _send('PUT', path, body: body, headers: headers);
 
-  Future<TestResponse> delete(
-    String path, {
-    Map<String, String>? headers,
-  }) =>
+  Future<TestResponse> delete(String path, {Map<String, String>? headers}) =>
       _send('DELETE', path, headers: headers);
 
   Future<TestResponse> patch(
     String path, {
     Object? body,
     Map<String, String>? headers,
-  }) =>
-      _send('PATCH', path, body: body, headers: headers);
+  }) => _send('PATCH', path, body: body, headers: headers);
 
   Future<TestResponse> _send(
     String method,

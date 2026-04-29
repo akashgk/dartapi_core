@@ -6,10 +6,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 void main() {
   group('WebSocketRoute', () {
     test('stores path, handler, and defaults', () {
-      final route = WebSocketRoute(
-        path: '/ws/chat',
-        handler: (_, _) {},
-      );
+      final route = WebSocketRoute(path: '/ws/chat', handler: (_, _) {});
       expect(route.path, equals('/ws/chat'));
       expect(route.middlewares, isEmpty);
       expect(route.summary, isNull);
@@ -20,9 +17,7 @@ void main() {
         path: '/ws/data',
         handler: (_, _) {},
         summary: 'Data stream',
-        middlewares: [
-          (Handler inner) => (req) => inner(req),
-        ],
+        middlewares: [(Handler inner) => (req) => inner(req)],
       );
       expect(route.summary, equals('Data stream'));
       expect(route.middlewares, hasLength(1));
@@ -84,11 +79,11 @@ class _WsController extends BaseController {
 
   @override
   List<WebSocketRoute> get webSocketRoutes => [
-        WebSocketRoute(
-          path: '/ws/echo',
-          handler: (channel, _) {
-            channel.stream.listen((msg) => channel.sink.add(msg));
-          },
-        ),
-      ];
+    WebSocketRoute(
+      path: '/ws/echo',
+      handler: (channel, _) {
+        channel.stream.listen((msg) => channel.sink.add(msg));
+      },
+    ),
+  ];
 }

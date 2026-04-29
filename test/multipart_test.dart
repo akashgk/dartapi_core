@@ -28,13 +28,11 @@ String _multipartBody(List<Map<String, String>> parts) {
 }
 
 Request _req(String body) => Request(
-      'POST',
-      Uri.parse('http://localhost/upload'),
-      body: body,
-      headers: {
-        'content-type': 'multipart/form-data; boundary=$_boundary',
-      },
-    );
+  'POST',
+  Uri.parse('http://localhost/upload'),
+  body: body,
+  headers: {'content-type': 'multipart/form-data; boundary=$_boundary'},
+);
 
 void main() {
   group('UploadedFile', () {

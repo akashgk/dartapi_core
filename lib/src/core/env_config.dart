@@ -29,7 +29,7 @@ abstract class EnvConfig {
 
   /// Creates a config that reads from [environment] (defaults to `Platform.environment`).
   EnvConfig({Map<String, String>? environment})
-      : _env = environment ?? Platform.environment;
+    : _env = environment ?? Platform.environment;
 
   /// Returns the value of [key] as a [String].
   ///

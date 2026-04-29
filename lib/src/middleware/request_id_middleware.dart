@@ -30,10 +30,12 @@ Middleware requestIdMiddleware({
 
       final response = await inner(updatedRequest);
 
-      return response.change(headers: {
-        ...response.headersAll.map((k, v) => MapEntry(k, v.join(','))),
-        headerName: id,
-      });
+      return response.change(
+        headers: {
+          ...response.headersAll.map((k, v) => MapEntry(k, v.join(','))),
+          headerName: id,
+        },
+      );
     };
   };
 }

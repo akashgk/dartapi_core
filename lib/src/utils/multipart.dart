@@ -62,12 +62,14 @@ extension MultipartExtensions on Request {
       final filename = _headerParam(disposition, 'filename');
       final ct = part.headers['content-type'] ?? 'text/plain';
       final bytes = await part.fold<List<int>>([], (a, b) => [...a, ...b]);
-      result.add(UploadedFile(
-        fieldName: name,
-        filename: filename,
-        contentType: ct,
-        bytes: bytes,
-      ));
+      result.add(
+        UploadedFile(
+          fieldName: name,
+          filename: filename,
+          contentType: ct,
+          bytes: bytes,
+        ),
+      );
     }
     return result;
   }
@@ -96,8 +98,7 @@ extension MultipartExtensions on Request {
   Future<Map<String, String>> formFields() async {
     final all = await multipartFiles();
     return {
-      for (final part in all.where((p) => !p.isFile))
-        part.fieldName: part.text,
+      for (final part in all.where((p) => !p.isFile)) part.fieldName: part.text,
     };
   }
 
@@ -105,8 +106,7 @@ extension MultipartExtensions on Request {
     final ct = headers['content-type'] ?? '';
     final match = RegExp(r'boundary=([^\s;]+)').firstMatch(ct);
     if (match == null) {
-      throw FormatException(
-          'Missing boundary in Content-Type: $ct');
+      throw FormatException('Missing boundary in Content-Type: $ct');
     }
     return match.group(1)!;
   }
@@ -116,7 +116,9 @@ extension MultipartExtensions on Request {
 ///
 /// Example: `form-data; name="avatar"; filename="photo.jpg"` with `name` → `"avatar"`.
 String? _headerParam(String header, String param) {
-  final match =
-      RegExp('$param="([^"]*)"', caseSensitive: false).firstMatch(header);
+  final match = RegExp(
+    '$param="([^"]*)"',
+    caseSensitive: false,
+  ).firstMatch(header);
   return match?.group(1);
 }

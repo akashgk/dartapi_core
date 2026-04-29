@@ -69,22 +69,28 @@ void main() {
       expect(identical(a, b), isTrue);
     });
 
-    test('factory is called exactly once regardless of how many times get is called', () {
-      _factoryCallCount = 0;
-      r.register<Repository>((_) => InMemoryRepository());
-      r.register<Service>(_countedServiceFactory);
-      r.get<Service>();
-      r.get<Service>();
-      r.get<Service>();
-      expect(_factoryCallCount, 1);
-    });
+    test(
+      'factory is called exactly once regardless of how many times get is called',
+      () {
+        _factoryCallCount = 0;
+        r.register<Repository>((_) => InMemoryRepository());
+        r.register<Service>(_countedServiceFactory);
+        r.get<Service>();
+        r.get<Service>();
+        r.get<Service>();
+        expect(_factoryCallCount, 1);
+      },
+    );
 
-    test('factory receives the registry so it can resolve sub-dependencies', () {
-      r.register<Repository>((_) => InMemoryRepository());
-      r.register<Service>((reg) => Service(reg.get<Repository>()));
-      final svc = r.get<Service>();
-      expect(svc.repo, isA<InMemoryRepository>());
-    });
+    test(
+      'factory receives the registry so it can resolve sub-dependencies',
+      () {
+        r.register<Repository>((_) => InMemoryRepository());
+        r.register<Service>((reg) => Service(reg.get<Repository>()));
+        final svc = r.get<Service>();
+        expect(svc.repo, isA<InMemoryRepository>());
+      },
+    );
 
     test('three-level resolution chain works correctly', () {
       r.register<Repository>((_) => InMemoryRepository());
@@ -335,20 +341,23 @@ void main() {
     late ServiceRegistry r;
     setUp(() => r = ServiceRegistry());
 
-    test('different concrete types can be registered as different abstract types', () {
-      // Register InMemoryRepository under Repository
-      r.register<Repository>((_) => InMemoryRepository());
-      // Register separately as InMemoryRepository (concrete)
-      r.register<InMemoryRepository>((_) => InMemoryRepository());
+    test(
+      'different concrete types can be registered as different abstract types',
+      () {
+        // Register InMemoryRepository under Repository
+        r.register<Repository>((_) => InMemoryRepository());
+        // Register separately as InMemoryRepository (concrete)
+        r.register<InMemoryRepository>((_) => InMemoryRepository());
 
-      final asAbstract = r.get<Repository>();
-      final asConcrete = r.get<InMemoryRepository>();
+        final asAbstract = r.get<Repository>();
+        final asConcrete = r.get<InMemoryRepository>();
 
-      expect(asAbstract, isA<InMemoryRepository>());
-      expect(asConcrete, isA<InMemoryRepository>());
-      // They are separate registrations → separate instances
-      expect(identical(asAbstract, asConcrete), isFalse);
-    });
+        expect(asAbstract, isA<InMemoryRepository>());
+        expect(asConcrete, isA<InMemoryRepository>());
+        // They are separate registrations → separate instances
+        expect(identical(asAbstract, asConcrete), isFalse);
+      },
+    );
 
     test('registered instance type is preserved through resolution', () {
       r.register<Repository>((_) => DbRepository('test'));

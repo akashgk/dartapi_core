@@ -21,8 +21,9 @@ void main() {
     test('returns the inner handler response unmodified', () async {
       final handler = wrap((_) async => Response(201, body: 'created'));
 
-      final response =
-          await handler(Request('POST', Uri.parse('http://localhost/items')));
+      final response = await handler(
+        Request('POST', Uri.parse('http://localhost/items')),
+      );
       expect(response.statusCode, equals(201));
       expect(await response.readAsString(), equals('created'));
     });
@@ -57,8 +58,9 @@ void main() {
           )
           .addHandler((_) async => Response.ok('body'));
 
-      final response =
-          await handler(Request('GET', Uri.parse('http://localhost/')));
+      final response = await handler(
+        Request('GET', Uri.parse('http://localhost/')),
+      );
       expect(response.statusCode, equals(200));
       expect(response.headers['x-extra'], equals('yes'));
     });

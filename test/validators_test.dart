@@ -128,7 +128,8 @@ void main() {
     test('MinLengthValidator applied via verifyKey', () {
       final json = <String, dynamic>{'name': 'ab'};
       expect(
-        () => json.verifyKey<String>('name', validators: [MinLengthValidator(3)]),
+        () =>
+            json.verifyKey<String>('name', validators: [MinLengthValidator(3)]),
         throwsA(isA<ApiException>()),
       );
     });
@@ -136,7 +137,10 @@ void main() {
     test('RangeValidator applied via verifyKey', () {
       final json = <String, dynamic>{'age': 200};
       expect(
-        () => json.verifyKey<int>('age', validators: [RangeValidator(min: 0, max: 150)]),
+        () => json.verifyKey<int>(
+          'age',
+          validators: [RangeValidator(min: 0, max: 150)],
+        ),
         throwsA(isA<ApiException>()),
       );
     });

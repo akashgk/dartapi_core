@@ -4,8 +4,7 @@ import 'package:dartapi_core/dartapi_core.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
-Request _req() =>
-    Request('GET', Uri.parse('http://localhost/test'));
+Request _req() => Request('GET', Uri.parse('http://localhost/test'));
 
 void main() {
   group('BackgroundTaskQueue', () {
@@ -36,9 +35,7 @@ void main() {
 
   group('backgroundTaskMiddleware', () {
     test('response is returned normally', () async {
-      final handler = backgroundTaskMiddleware()(
-        (_) => Response.ok('done'),
-      );
+      final handler = backgroundTaskMiddleware()((_) => Response.ok('done'));
       final res = await handler(_req());
       expect(res.statusCode, equals(200));
       expect(await res.readAsString(), equals('done'));
@@ -51,7 +48,10 @@ void main() {
         return Response.ok('ok');
       });
       await handler(_req());
-      expect(await completer.future.timeout(Duration(seconds: 2)), equals('ran'));
+      expect(
+        await completer.future.timeout(Duration(seconds: 2)),
+        equals('ran'),
+      );
     });
 
     test('multiple tasks all run', () async {

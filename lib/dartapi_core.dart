@@ -28,6 +28,9 @@ export 'src/utils/utils.dart';
 export 'src/utils/multipart.dart';
 export 'src/utils/cookies.dart';
 
+export 'src/validation/field.dart';
+export 'src/validation/field_set.dart';
+
 export 'src/middleware/rate_limit_middleware.dart';
 export 'src/middleware/request_id_middleware.dart';
 export 'src/middleware/compression_middleware.dart';

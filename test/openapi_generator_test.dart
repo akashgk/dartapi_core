@@ -46,8 +46,7 @@ void main() {
       );
       final spec = OpenApiGenerator(routes: [route], title: 'API').generate();
       expect(spec['paths'], contains('/users/{id}'));
-      final params =
-          spec['paths']['/users/{id}']['get']['parameters'] as List;
+      final params = spec['paths']['/users/{id}']['get']['parameters'] as List;
       expect(params.first['name'], equals('id'));
       expect(params.first['in'], equals('path'));
       expect(params.first['required'], isTrue);
@@ -70,7 +69,12 @@ void main() {
       final route = ApiRoute<void, String>(
         method: ApiMethod.post,
         path: '/users',
-        requestSchema: {'type': 'object', 'properties': {'name': {'type': 'string'}}},
+        requestSchema: {
+          'type': 'object',
+          'properties': {
+            'name': {'type': 'string'},
+          },
+        },
         typedHandler: (req, _) async => 'ok',
       );
       final spec = OpenApiGenerator(routes: [route], title: 'API').generate();
@@ -92,8 +96,10 @@ void main() {
       );
       final spec = OpenApiGenerator(routes: [route], title: 'API').generate();
       final response = spec['paths']['/users']['get']['responses']['200'];
-      expect(response['content']['application/json']['schema']['type'],
-          equals('array'));
+      expect(
+        response['content']['application/json']['schema']['type'],
+        equals('array'),
+      );
     });
 
     test('uses correct status code key in responses', () {
@@ -104,10 +110,7 @@ void main() {
         typedHandler: (req, _) async => 'ok',
       );
       final spec = OpenApiGenerator(routes: [route], title: 'API').generate();
-      expect(
-        spec['paths']['/items']['post']['responses'],
-        contains('201'),
-      );
+      expect(spec['paths']['/items']['post']['responses'], contains('201'));
       expect(
         spec['paths']['/items']['post']['responses']['201']['description'],
         equals('Created'),
@@ -123,7 +126,12 @@ void main() {
       );
       final spec = OpenApiGenerator(routes: [route], title: 'API').generate();
       final op = spec['paths']['/me']['get'];
-      expect((op['security'] as List).any((s) => s is Map && s.containsKey('bearerAuth')), isTrue);
+      expect(
+        (op['security'] as List).any(
+          (s) => s is Map && s.containsKey('bearerAuth'),
+        ),
+        isTrue,
+      );
       expect(
         spec['components']['securitySchemes']['bearerAuth']['scheme'],
         equals('bearer'),
@@ -137,8 +145,7 @@ void main() {
         typedHandler: (req, _) async => 'ok',
       );
       final spec = OpenApiGenerator(routes: [route], title: 'API').generate();
-      final schemes =
-          (spec['components'] as Map)['securitySchemes'] as Map;
+      final schemes = (spec['components'] as Map)['securitySchemes'] as Map;
       expect(schemes.containsKey('bearerAuth'), isTrue);
       expect((schemes['bearerAuth'] as Map)['scheme'], equals('bearer'));
     });
@@ -163,7 +170,10 @@ void main() {
       );
       final spec =
           OpenApiGenerator(routes: [get, post], title: 'API').generate();
-      expect((spec['paths']['/items'] as Map).keys, containsAll(['get', 'post']));
+      expect(
+        (spec['paths']['/items'] as Map).keys,
+        containsAll(['get', 'post']),
+      );
     });
   });
 
@@ -181,10 +191,14 @@ void main() {
         summary: 'Ping',
         typedHandler: (req, _) async => 'pong',
       );
-      final controller =
-          DocsController(apiRoutes: [route], title: 'TestAPI', version: '3.0.0');
-      final jsonRoute =
-          controller.routes.firstWhere((r) => r.path == '/openapi.json');
+      final controller = DocsController(
+        apiRoutes: [route],
+        title: 'TestAPI',
+        version: '3.0.0',
+      );
+      final jsonRoute = controller.routes.firstWhere(
+        (r) => r.path == '/openapi.json',
+      );
       final result = await jsonRoute.typedHandler(
         // ignore: invalid_use_of_internal_member — test only
         // dart:shelf Request is needed; use the handler getter instead
@@ -200,22 +214,21 @@ void main() {
 
     test('/docs route has text/html content type', () {
       final controller = DocsController(apiRoutes: [], title: 'API');
-      final docsRoute =
-          controller.routes.firstWhere((r) => r.path == '/docs');
+      final docsRoute = controller.routes.firstWhere((r) => r.path == '/docs');
       expect(docsRoute.contentType, equals('text/html'));
     });
 
     test('/redoc route has text/html content type', () {
       final controller = DocsController(apiRoutes: [], title: 'API');
-      final redocRoute =
-          controller.routes.firstWhere((r) => r.path == '/redoc');
+      final redocRoute = controller.routes.firstWhere(
+        (r) => r.path == '/redoc',
+      );
       expect(redocRoute.contentType, equals('text/html'));
     });
 
     test('/docs handler returns HTML with swagger-ui', () async {
       final controller = DocsController(apiRoutes: [], title: 'MyDocs');
-      final docsRoute =
-          controller.routes.firstWhere((r) => r.path == '/docs');
+      final docsRoute = controller.routes.firstWhere((r) => r.path == '/docs');
       final html = await docsRoute.typedHandler(_dummyRequest(), null);
       expect(html, contains('swagger-ui'));
       expect(html, contains('MyDocs'));
@@ -223,8 +236,9 @@ void main() {
 
     test('/redoc handler returns HTML with redoc tag', () async {
       final controller = DocsController(apiRoutes: [], title: 'MyDocs');
-      final redocRoute =
-          controller.routes.firstWhere((r) => r.path == '/redoc');
+      final redocRoute = controller.routes.firstWhere(
+        (r) => r.path == '/redoc',
+      );
       final html = await redocRoute.typedHandler(_dummyRequest(), null);
       expect(html, contains('<redoc'));
       expect(html, contains('MyDocs'));
@@ -285,5 +299,4 @@ void main() {
   });
 }
 
-Request _dummyRequest() =>
-    Request('GET', Uri.parse('http://localhost/test'));
+Request _dummyRequest() => Request('GET', Uri.parse('http://localhost/test'));

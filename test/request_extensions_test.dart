@@ -87,7 +87,9 @@ void main() {
       final req = Request('GET', Uri.parse('http://localhost/test'));
       expect(
         () => req.pathParam<String>('id'),
-        throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 400)),
+        throwsA(
+          isA<ApiException>().having((e) => e.statusCode, 'statusCode', 400),
+        ),
       );
     });
   });

@@ -17,21 +17,21 @@ class HealthController extends BaseController {
 
   @override
   List<ApiRoute> get routes => [
-        ApiRoute<void, _HealthPayload>(
-          method: ApiMethod.get,
-          path: '/health',
-          typedHandler: _handle,
-          summary: 'Health check',
-          description: 'Returns server status and uptime.',
-          responseSchema: {
-            'type': 'object',
-            'properties': {
-              'status': {'type': 'string', 'example': 'ok'},
-              'uptime': {'type': 'string', 'example': '3h 14m 7s'},
-            },
-          },
-        ),
-      ];
+    ApiRoute<void, _HealthPayload>(
+      method: ApiMethod.get,
+      path: '/health',
+      typedHandler: _handle,
+      summary: 'Health check',
+      description: 'Returns server status and uptime.',
+      responseSchema: {
+        'type': 'object',
+        'properties': {
+          'status': {'type': 'string', 'example': 'ok'},
+          'uptime': {'type': 'string', 'example': '3h 14m 7s'},
+        },
+      },
+    ),
+  ];
 
   Future<_HealthPayload> _handle(Request request, void _) async {
     return _HealthPayload(_formatUptime(DateTime.now().difference(_startedAt)));

@@ -26,7 +26,17 @@ class MetricsRegistry {
   final Map<String, int> _histogramBuckets = {};
 
   static const _buckets = [
-    0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
+    0.005,
+    0.01,
+    0.025,
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    1.0,
+    2.5,
+    5.0,
+    10.0,
   ];
 
   void recordRequest(
@@ -46,8 +56,7 @@ class MetricsRegistry {
     for (final le in _buckets) {
       if (durationSeconds <= le) {
         final bucketKey = '$method|$path|$le';
-        _histogramBuckets[bucketKey] =
-            (_histogramBuckets[bucketKey] ?? 0) + 1;
+        _histogramBuckets[bucketKey] = (_histogramBuckets[bucketKey] ?? 0) + 1;
       }
     }
   }

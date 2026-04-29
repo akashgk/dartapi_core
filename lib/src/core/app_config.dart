@@ -24,13 +24,15 @@ class AppConfig extends EnvConfig {
   // ── Environment ──────────────────────────────────────────────────────────
 
   /// The active [AppEnvironment] parsed from `APP_ENV`.
-  AppEnvironment get appEnv =>
-      switch (env('APP_ENV', defaultValue: 'dev').toLowerCase()) {
-        'staging' => AppEnvironment.staging,
-        'uat' => AppEnvironment.uat,
-        'production' || 'prod' => AppEnvironment.production,
-        _ => AppEnvironment.dev,
-      };
+  AppEnvironment get appEnv => switch (env(
+    'APP_ENV',
+    defaultValue: 'dev',
+  ).toLowerCase()) {
+    'staging' => AppEnvironment.staging,
+    'uat' => AppEnvironment.uat,
+    'production' || 'prod' => AppEnvironment.production,
+    _ => AppEnvironment.dev,
+  };
 
   bool get isDev => appEnv == AppEnvironment.dev;
   bool get isStaging => appEnv == AppEnvironment.staging;
@@ -46,13 +48,13 @@ class AppConfig extends EnvConfig {
 
   /// Log level — `'debug'` in dev, `'info'` in staging/UAT, `'warn'` in production.
   String get logLevel => env(
-        'LOG_LEVEL',
-        defaultValue: switch (appEnv) {
-          AppEnvironment.dev => 'debug',
-          AppEnvironment.staging || AppEnvironment.uat => 'info',
-          AppEnvironment.production => 'warn',
-        },
-      );
+    'LOG_LEVEL',
+    defaultValue: switch (appEnv) {
+      AppEnvironment.dev => 'debug',
+      AppEnvironment.staging || AppEnvironment.uat => 'info',
+      AppEnvironment.production => 'warn',
+    },
+  );
 
   // ── Database ─────────────────────────────────────────────────────────────
 
@@ -69,24 +71,28 @@ class AppConfig extends EnvConfig {
 
   // ── JWT ───────────────────────────────────────────────────────────────────
 
-  String get jwtAccessSecret => env('JWT_ACCESS_SECRET',
-      defaultValue: 'dev-access-secret-not-for-production');
-  String get jwtRefreshSecret => env('JWT_REFRESH_SECRET',
-      defaultValue: 'dev-refresh-secret-not-for-production');
+  String get jwtAccessSecret => env(
+    'JWT_ACCESS_SECRET',
+    defaultValue: 'dev-access-secret-not-for-production',
+  );
+  String get jwtRefreshSecret => env(
+    'JWT_REFRESH_SECRET',
+    defaultValue: 'dev-refresh-secret-not-for-production',
+  );
 
   Duration get jwtAccessExpiry => Duration(
-        minutes: envInt(
-          'JWT_ACCESS_EXPIRY_MINUTES',
-          defaultValue: isProduction ? 15 : 60,
-        ),
-      );
+    minutes: envInt(
+      'JWT_ACCESS_EXPIRY_MINUTES',
+      defaultValue: isProduction ? 15 : 60,
+    ),
+  );
 
   Duration get jwtRefreshExpiry => Duration(
-        days: envInt(
-          'JWT_REFRESH_EXPIRY_DAYS',
-          defaultValue: isProduction ? 7 : 30,
-        ),
-      );
+    days: envInt(
+      'JWT_REFRESH_EXPIRY_DAYS',
+      defaultValue: isProduction ? 7 : 30,
+    ),
+  );
 
   // ── CORS ──────────────────────────────────────────────────────────────────
 

@@ -119,12 +119,12 @@ extension RequestExtensions on Request {
 }
 
 String _jsonTypeName<T>() => switch (T) {
-      const (String) => 'string',
-      const (int) => 'integer',
-      const (double) => 'number',
-      const (bool) => 'boolean',
-      _ => T.toString().toLowerCase(),
-    };
+  const (String) => 'string',
+  const (int) => 'integer',
+  const (double) => 'number',
+  const (bool) => 'boolean',
+  _ => T.toString().toLowerCase(),
+};
 
 /// Coerces a URL string value to the requested type [T].
 T _coerce<T>(String name, String value) {
@@ -132,14 +132,20 @@ T _coerce<T>(String name, String value) {
   if (T == int) {
     final parsed = int.tryParse(value);
     if (parsed == null) {
-      throw ApiException(400, 'Parameter "$name" must be an integer, got "$value"');
+      throw ApiException(
+        400,
+        'Parameter "$name" must be an integer, got "$value"',
+      );
     }
     return parsed as T;
   }
   if (T == double) {
     final parsed = double.tryParse(value);
     if (parsed == null) {
-      throw ApiException(400, 'Parameter "$name" must be a number, got "$value"');
+      throw ApiException(
+        400,
+        'Parameter "$name" must be a number, got "$value"',
+      );
     }
     return parsed as T;
   }
