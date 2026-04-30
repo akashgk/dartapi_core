@@ -115,6 +115,24 @@ class ApiRoute<ApiInput, ApiOutput> {
   /// ```
   final List<QueryParamSpec> queryParams;
 
+  /// OpenAPI tags for grouping this route in Swagger UI / ReDoc.
+  ///
+  /// Routes with the same tag are displayed together under a collapsible
+  /// section in Swagger UI. If empty, the route appears in the default group.
+  ///
+  /// Tags can also be set automatically by overriding [BaseController.tag]
+  /// on the controller that owns this route.
+  ///
+  /// ```dart
+  /// ApiRoute(
+  ///   method: ApiMethod.get,
+  ///   path: '/users',
+  ///   tags: ['Users'],
+  ///   typedHandler: listUsers,
+  /// )
+  /// ```
+  final List<String> tags;
+
   /// Creates a new [ApiRoute] instance.
   ///
   /// You must provide the [method], [path], and [typedHandler].
@@ -134,7 +152,30 @@ class ApiRoute<ApiInput, ApiOutput> {
     this.security = const [],
     this.contentType = 'application/json',
     this.queryParams = const [],
+    this.tags = const [],
   });
+
+  /// Returns a copy of this route with the given [newTags], leaving all other
+  /// fields unchanged. Used by [RouterManager] to apply a controller's default
+  /// tag to routes that declare no explicit tags.
+  ApiRoute<ApiInput, ApiOutput> withTags(List<String> newTags) =>
+      ApiRoute<ApiInput, ApiOutput>(
+        method: method,
+        path: path,
+        typedHandler: typedHandler,
+        dtoParser: dtoParser,
+        middlewares: middlewares,
+        cacheTtl: cacheTtl,
+        summary: summary,
+        description: description,
+        requestSchema: requestSchema,
+        responseSchema: responseSchema,
+        statusCode: statusCode,
+        security: security,
+        contentType: contentType,
+        queryParams: queryParams,
+        tags: newTags,
+      );
 
   /// Effective middlewares for this route, including [cacheMiddleware] when
   /// [cacheTtl] is set. Used by [RouterManager] when registering routes.

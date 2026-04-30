@@ -1,3 +1,16 @@
+## 0.1.7
+
+**Milestone 5 — OpenAPI Tags.**
+
+- Add `tags` field to `ApiRoute` — a `List<String>` that appears under `tags` in the generated OpenAPI operation object. Routes with the same tag are grouped together in Swagger UI and ReDoc.
+- Add `withTags(List<String>)` method to `ApiRoute` — returns a copy of the route with new tags (all other fields unchanged). Used internally by `RouterManager`.
+- Add `tag` getter to `BaseController` — override in a subclass to automatically apply one tag to every route that declares no explicit tags (e.g. `String? get tag => 'Users';`). Routes that already have explicit tags are not affected.
+- Update `RouterManager.registerController()` — stamps the controller's `tag` onto routes with an empty `tags` list before collecting them for the spec generator.
+- Add `tagDescriptions` parameter to `OpenApiGenerator`, `DocsController`, and `enableDocs()` — a `Map<String, String>` of tag name → description. These appear in the top-level `tags` array of the OpenAPI spec, adding human-readable descriptions under each group heading in Swagger UI and ReDoc.
+- `OpenApiGenerator.generate()` now emits `tags` on each operation when the route has tags and a deduplicated top-level `tags` array (with optional descriptions) when any route or `tagDescriptions` entry declares a tag.
+- Update `rest_api` example — `BookController` overrides `tag => 'Books'`; `enableDocs()` passes `tagDescriptions: {'Books': 'CRUD operations for the book catalogue'}`.
+- 21 new tests in `test/openapi_tags_test.dart` (566 total).
+
 ## 0.1.6
 
 **Milestone 3 — Example Projects.**

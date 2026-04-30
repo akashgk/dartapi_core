@@ -17,8 +17,15 @@ class RouterManager {
   List<ApiRoute> get collectedRoutes => List.unmodifiable(_collectedRoutes);
 
   void registerController(BaseController controller) {
+    final controllerTag = controller.tag;
+
     for (final ApiRoute route in controller.routes) {
-      _collectedRoutes.add(route);
+      // Stamp controller tag onto routes that declare no explicit tags.
+      final effectiveRoute =
+          (controllerTag != null && route.tags.isEmpty)
+              ? route.withTags([controllerTag])
+              : route;
+      _collectedRoutes.add(effectiveRoute);
       Handler finalHandler = route.handler;
 
       for (final Middleware routeMiddleWare in route.effectiveMiddlewares) {

@@ -12,6 +12,9 @@ class BookController extends BaseController {
         _jwt = jwt;
 
   @override
+  String? get tag => 'Books';
+
+  @override
   List<ApiRoute> get routes => [
         ApiRoute<void, PaginatedResponse>(
           method: ApiMethod.get,

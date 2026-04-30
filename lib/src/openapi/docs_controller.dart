@@ -22,6 +22,7 @@ class DocsController extends BaseController {
   final String version;
   final String description;
   final Map<String, Map<String, dynamic>> schemas;
+  final Map<String, String> tagDescriptions;
 
   DocsController({
     required this.apiRoutes,
@@ -29,6 +30,7 @@ class DocsController extends BaseController {
     this.version = '1.0.0',
     this.description = '',
     this.schemas = const {},
+    this.tagDescriptions = const {},
   });
 
   @override
@@ -50,6 +52,7 @@ class DocsController extends BaseController {
               version: version,
               description: description,
               schemas: schemas,
+              tagDescriptions: tagDescriptions,
             ).toJson(),
   );
 

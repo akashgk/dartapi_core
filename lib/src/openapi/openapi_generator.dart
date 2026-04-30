@@ -33,12 +33,29 @@ class OpenApiGenerator {
   /// Routes can reference these with `{'\$ref': '#/components/schemas/Name'}`.
   final Map<String, Map<String, dynamic>> schemas;
 
+  /// Optional descriptions for OpenAPI tag objects in the top-level `tags` array.
+  ///
+  /// Keys are tag names; values are the human-readable descriptions that appear
+  /// in Swagger UI and ReDoc below each group heading.
+  ///
+  /// ```dart
+  /// OpenApiGenerator(
+  ///   tagDescriptions: {
+  ///     'Users':    'User management endpoints',
+  ///     'Products': 'Product catalogue',
+  ///   },
+  ///   ...
+  /// )
+  /// ```
+  final Map<String, String> tagDescriptions;
+
   const OpenApiGenerator({
     required this.routes,
     required this.title,
     this.version = '1.0.0',
     this.description = '',
     this.schemas = const {},
+    this.tagDescriptions = const {},
   });
 
   /// Returns the OpenAPI 3.0 specification as a [Map].
@@ -52,6 +69,7 @@ class OpenApiGenerator {
       paths[openApiPath] ??= <String, dynamic>{};
 
       final operation = <String, dynamic>{};
+      if (route.tags.isNotEmpty) operation['tags'] = route.tags;
       if (route.summary != null) operation['summary'] = route.summary;
       if (route.description != null) {
         operation['description'] = route.description;
@@ -122,6 +140,21 @@ class OpenApiGenerator {
       if (schemas.isNotEmpty) 'schemas': schemas,
     };
 
+    // Collect all unique tag names (preserving first-seen order).
+    final seenTags = <String>{};
+    for (final route in routes) {
+      seenTags.addAll(route.tags);
+    }
+    seenTags.addAll(tagDescriptions.keys);
+
+    final topLevelTags =
+        seenTags.map((name) {
+          final entry = <String, dynamic>{'name': name};
+          final desc = tagDescriptions[name];
+          if (desc != null) entry['description'] = desc;
+          return entry;
+        }).toList();
+
     return {
       'openapi': '3.0.0',
       'info': {
@@ -129,6 +162,7 @@ class OpenApiGenerator {
         'version': version,
         if (description.isNotEmpty) 'description': description,
       },
+      if (topLevelTags.isNotEmpty) 'tags': topLevelTags,
       'paths': paths,
       'components': components,
     };

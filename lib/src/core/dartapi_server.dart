@@ -165,10 +165,25 @@ class DartAPI {
 
   /// Registers OpenAPI docs at `/openapi.json`, `/docs` (Swagger UI), and
   /// `/redoc`. Call this *after* [addControllers] so all routes are collected.
+  ///
+  /// [tagDescriptions] is an optional map from tag name to description string.
+  /// These appear in the top-level `tags` array of the OpenAPI spec, adding
+  /// human-readable descriptions to each group in Swagger UI and ReDoc.
+  ///
+  /// ```dart
+  /// app.enableDocs(
+  ///   title: 'My API',
+  ///   tagDescriptions: {
+  ///     'Users':    'User management endpoints',
+  ///     'Products': 'Product catalogue',
+  ///   },
+  /// );
+  /// ```
   void enableDocs({
     String title = 'API',
     String version = '1.0.0',
     Map<String, Map<String, dynamic>> schemas = const {},
+    Map<String, String> tagDescriptions = const {},
   }) {
     _router.registerController(
       DocsController(
@@ -176,6 +191,7 @@ class DartAPI {
         title: title,
         version: version,
         schemas: schemas,
+        tagDescriptions: tagDescriptions,
       ),
     );
   }

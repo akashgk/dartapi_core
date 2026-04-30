@@ -69,6 +69,9 @@ void main() async {
       },
       'BookDTO': BookDTO.schema,
     },
+    tagDescriptions: {
+      'Books': 'CRUD operations for the book catalogue',
+    },
   );
 
   final port = int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
