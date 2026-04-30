@@ -4,38 +4,49 @@ A framework for building typed, structured REST APIs in Dart — routing, valida
 
 ---
 
-## Quick Start (no CLI required)
+## Getting Started in 5 Minutes (No CLI)
 
 ```yaml
 dependencies:
-  dartapi_core: ^0.1.3
+  dartapi_core: ^0.1.6
 ```
 
 ```dart
 import 'package:dartapi_core/dartapi_core.dart';
 
 void main() async {
-  final app = DartAPI();
+  final app = DartAPI(appName: 'my_api');
 
   app.addControllers([
     InlineController([
-      ApiRoute<void, String>(
+      ApiRoute(
         method: ApiMethod.get,
         path: '/hello',
-        typedHandler: (req, _) async => 'Hello, World!',
         summary: 'Say hello',
+        typedHandler: (req, _) async => {'message': 'Hello, World!'},
       ),
     ]),
   ]);
 
   app.enableDocs(title: 'My API', version: '1.0.0');
+  app.enableHealthCheck();
   await app.start(port: 8080);
 }
 ```
 
-Run with `dart run bin/main.dart` — your API is live at `http://localhost:8080`.
+Run with `dart run bin/main.dart` — open `http://localhost:8080/docs` for Swagger UI.
 
-A complete, runnable example covering all features is in [`example/dartapi_core_example.dart`](example/dartapi_core_example.dart).
+## Examples
+
+Three runnable examples live in [`example/`](example/):
+
+| Example | Description |
+|---|---|
+| [`example/minimal/`](example/minimal/) | One file, one route — the smallest possible server |
+| [`example/rest_api/`](example/rest_api/) | Full CRUD with JWT auth, FieldSet DTOs, ServiceRegistry, tests |
+| [`example/standalone_no_cli/`](example/standalone_no_cli/) | Annotated starter project (equivalent to `dartapi create --minimal`) |
+
+Each example has its own `pubspec.yaml` and `README.md` with copy-paste run instructions.
 
 ---
 
@@ -43,7 +54,7 @@ A complete, runnable example covering all features is in [`example/dartapi_core_
 
 ```yaml
 dependencies:
-  dartapi_core: ^0.1.3
+  dartapi_core: ^0.1.6
 ```
 
 ---
@@ -182,17 +193,54 @@ factory BookDTO.fromJson(Map<String, dynamic> json) {
 
 Throws a single `ApiException(422)` listing every invalid field.
 
+### `FieldSet` — declare fields once, get validation + schema
+
+`FieldSet` is the recommended way to define DTOs. Declare fields once and get runtime validation and an OpenAPI JSON Schema from the same source — no drift between rules and docs.
+
+```dart
+class CreateUserDTO {
+  static final fields = FieldSet({
+    'name':  Field<String>(validators: [NotEmptyValidator(), MaxLengthValidator(100)], example: 'Alice'),
+    'email': Field<String>(validators: [EmailValidator()]),
+    'age':   Field<int>(required: false, validators: [RangeValidator(min: 0, max: 150)]),
+    'role':  Field<String>(validators: [EnumValidator(['user', 'admin'])]),
+    'tags':  Field<List<String>>(),  // emits {type: array, items: {type: string}}
+  });
+
+  static Map<String, dynamic> get schema => fields.toJsonSchema();
+
+  factory CreateUserDTO.fromJson(Map<String, dynamic> json) {
+    fields.validate(json); // collects ALL field errors, throws ValidationException
+    return CreateUserDTO(...);
+  }
+}
+```
+
+Use the schema in OpenAPI:
+
+```dart
+app.enableDocs(
+  title: 'My API',
+  schemas: {'CreateUserDTO': CreateUserDTO.schema},
+);
+// then on a route:
+ApiRoute(requestSchema: {r'$ref': '#/components/schemas/CreateUserDTO'}, ...)
+```
+
 ### Built-in validators
 
-| Validator | Type | Description |
-|-----------|------|-------------|
-| `EmailValidator()` | `String` | Validates email format |
-| `MinLengthValidator(n)` | `String` | At least `n` characters |
-| `MaxLengthValidator(n)` | `String` | At most `n` characters |
-| `NotEmptyValidator()` | `String` | Non-blank string |
-| `RangeValidator<T>(min:, max:)` | `num` | Numeric range (inclusive) |
-| `PatternValidator(regex, message)` | `String` | Regex match |
-| `UrlValidator()` | `String` | Valid `http`/`https` URL |
+Each validator also implements `toSchemaProperties()` so its constraints appear in the generated OpenAPI spec automatically.
+
+| Validator | Type | Schema output |
+|-----------|------|---------------|
+| `EmailValidator([msg])` | `String` | `{format: email}` |
+| `MinLengthValidator(n)` | `String` | `{minLength: n}` |
+| `MaxLengthValidator(n)` | `String` | `{maxLength: n}` |
+| `NotEmptyValidator()` | `String` | `{minLength: 1}` |
+| `RangeValidator<T>(min:, max:)` | `num` | `{minimum, maximum}` |
+| `PatternValidator(regex, msg)` | `String` | `{pattern: regex.pattern}` |
+| `UrlValidator()` | `String` | `{format: uri}` |
+| `EnumValidator<T>(values, [msg])` | any | `{enum: [...]}` |
 
 ### Custom validators
 
@@ -446,7 +494,11 @@ Tasks run sequentially after the response resolves. Errors in tasks are swallowe
 
 ```dart
 app.addControllers([userController, productController]);
-app.enableDocs(title: 'My App', version: '1.0.0');
+app.enableDocs(
+  title: 'My App',
+  version: '1.0.0',
+  schemas: {'CreateUserDTO': CreateUserDTO.schema},  // optional shared schemas
+);
 await app.start();
 ```
 
@@ -455,6 +507,30 @@ await app.start();
 | `GET /openapi.json` | OpenAPI 3.0 spec |
 | `GET /docs` | Swagger UI (with persistent Bearer token support) |
 | `GET /redoc` | ReDoc UI |
+
+**Documenting query parameters** — use `QueryParamSpec` so params appear in Swagger UI:
+
+```dart
+ApiRoute(
+  method: ApiMethod.get,
+  path: '/users',
+  queryParams: [
+    QueryParamSpec('page',   type: 'integer', defaultValue: 1),
+    QueryParamSpec('limit',  type: 'integer', defaultValue: 20),
+    QueryParamSpec('search', description: 'Filter by name'),
+  ],
+  typedHandler: ...,
+)
+```
+
+**Shared schemas with `$ref`** — register named schemas and reference them:
+
+```dart
+app.enableDocs(schemas: {'CreateUserDTO': CreateUserDTO.schema});
+
+// on a route:
+ApiRoute(requestSchema: {r'$ref': '#/components/schemas/CreateUserDTO'}, ...)
+```
 
 ---
 
@@ -576,7 +652,9 @@ client = DartApiTestClient(
 
 - [dartapi CLI](https://pub.dev/packages/dartapi)
 - [dartapi_db](https://pub.dev/packages/dartapi_db)
-- [Example](example/dartapi_core_example.dart)
+- [Minimal example](example/minimal/)
+- [Full REST API example](example/rest_api/)
+- [Standalone starter](example/standalone_no_cli/)
 - [GitHub](https://github.com/akashgk/dartapi_core)
 
 ---

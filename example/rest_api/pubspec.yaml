@@ -1,0 +1,13 @@
+name: rest_api
+description: Full CRUD REST API example using dartapi_core — JWT auth, FieldSet DTOs, ServiceRegistry, OpenAPI docs.
+publish_to: none
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  dartapi_core:
+    path: ../../
+
+dev_dependencies:
+  test: ^1.24.0

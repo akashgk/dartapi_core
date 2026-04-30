@@ -1,0 +1,10 @@
+name: minimal
+description: Minimal dartapi_core example — one file, one route.
+publish_to: none
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  dartapi_core:
+    path: ../../

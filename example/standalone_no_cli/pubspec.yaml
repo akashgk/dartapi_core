@@ -1,0 +1,10 @@
+name: my_api
+description: A minimal dartapi_core project — equivalent to `dartapi create --minimal`.
+publish_to: none
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  dartapi_core:
+    path: ../../

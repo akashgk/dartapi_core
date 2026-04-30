@@ -1,3 +1,14 @@
+## 0.1.6
+
+**Milestone 3 — Example Projects.**
+
+- Add `example/minimal/` — one-file server with `InlineController`, health check, and Swagger UI; compiles to a standalone executable.
+- Add `example/rest_api/` — full CRUD Books API: `FieldSet` DTOs, JWT auth, `ServiceRegistry`, `QueryParamSpec`, `$ref` schemas, `DartApiTestClient` tests (14 tests). Demonstrates every Milestone 1–2 feature end-to-end.
+- Add `example/standalone_no_cli/` — annotated starter project equivalent to `dartapi create --minimal`; explains every file and every decision.
+- Add `schemas` parameter to `enableDocs()` — pass `Map<String, Map<String, dynamic>>` of named schemas; forwarded to `DocsController` and `OpenApiGenerator` so `components/schemas` appears in the spec without constructing the generator manually.
+- Add `schemas` field to `DocsController` — enables named schemas when constructing the controller directly without `DartAPI`.
+- Update `README.md` — lead with "Getting Started in 5 Minutes (No CLI)", examples table, updated validators table with `EnumValidator`, `QueryParamSpec` and `$ref` OpenAPI docs.
+
 ## 0.1.5
 
 **Milestone 2 — OpenAPI Spec Quality.**

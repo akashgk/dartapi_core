@@ -165,12 +165,17 @@ class DartAPI {
 
   /// Registers OpenAPI docs at `/openapi.json`, `/docs` (Swagger UI), and
   /// `/redoc`. Call this *after* [addControllers] so all routes are collected.
-  void enableDocs({String title = 'API', String version = '1.0.0'}) {
+  void enableDocs({
+    String title = 'API',
+    String version = '1.0.0',
+    Map<String, Map<String, dynamic>> schemas = const {},
+  }) {
     _router.registerController(
       DocsController(
         apiRoutes: _router.collectedRoutes,
         title: title,
         version: version,
+        schemas: schemas,
       ),
     );
   }
