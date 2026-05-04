@@ -13,7 +13,7 @@ import 'serializable.dart';
 /// { "status": "ok", "uptime": "3h 14m 7s" }
 /// ```
 class HealthController extends BaseController {
-  final DateTime _startedAt = DateTime.now();
+  final Stopwatch _uptime = Stopwatch()..start();
 
   @override
   List<ApiRoute> get routes => [
@@ -34,7 +34,7 @@ class HealthController extends BaseController {
   ];
 
   Future<_HealthPayload> _handle(Request request, void _) async {
-    return _HealthPayload(_formatUptime(DateTime.now().difference(_startedAt)));
+    return _HealthPayload(_formatUptime(_uptime.elapsed));
   }
 
   static String _formatUptime(Duration d) {

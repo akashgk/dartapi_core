@@ -70,12 +70,20 @@ Middleware cacheMiddleware({
           keyExtractor?.call(request) ?? request.requestedUri.toString();
 
       final cached = cache[key];
-      if (cached != null && !cached.isExpired) {
-        return Response(
-          cached.statusCode,
-          body: cached.body,
-          headers: {...cached.headers, 'x-cache': 'HIT'},
-        );
+      if (cached != null) {
+        if (!cached.isExpired) {
+          return Response(
+            cached.statusCode,
+            body: cached.body,
+            headers: {...cached.headers, 'x-cache': 'HIT'},
+          );
+        }
+        cache.remove(key);
+      }
+
+      // Periodically sweep expired entries to prevent unbounded memory growth.
+      if (cache.length > 500) {
+        cache.removeWhere((_, v) => v.isExpired);
       }
 
       final response = await inner(request);

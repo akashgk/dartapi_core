@@ -1,3 +1,14 @@
+## 0.1.8
+
+**Bug fixes and hardening.**
+
+- Fix `cacheMiddleware` memory leak — expired entries are now removed on access and a sweep evicts all stale entries when the cache exceeds 500 keys, preventing unbounded memory growth in long-running servers.
+- Fix `HealthController` uptime — replaced `DateTime.now().difference(startedAt)` with `Stopwatch.elapsed` so reported uptime is immune to system clock adjustments.
+- Fix `JwtService._isValidPayload` — type-checks every standard claim (`sub`, `jti`, `iss`, `aud`, `type` must be `String`; `iat`, `exp` must be `int`), preventing silent cast errors when a malformed token carries wrong-typed claims.
+- Fix `EmailValidator` regex — now accepts `+`, `%`, `_` and other RFC 5321 characters in the local part (e.g. `user+tag@example.com`).
+- Fix `dart analyze` — move `// ignore: prefer_initializing_formals` comments to the correct lines in `JwtService` constructor initialisers so the linter actually suppresses them.
+- Dependency upgrades: `test` 1.31.0 → 1.31.1, `test_api` 0.7.11 → 0.7.12, `test_core` 0.6.17 → 0.6.18, `matcher` 0.12.19 → 0.12.20, `analyzer` 12.1.0 → 13.0.0, `vm_service` 15.1.0 → 15.2.0.
+
 ## 0.1.7
 
 **Milestone 5 — OpenAPI Tags.**

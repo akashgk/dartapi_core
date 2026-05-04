@@ -52,10 +52,8 @@ class JwtService {
     this.refreshTokenExpiry = const Duration(days: 7),
     this.algorithm = JWTAlgorithm.HS256,
     this.tokenStore,
-  }) : accessTokenSecret =
-           accessTokenSecret, // ignore: prefer_initializing_formals
-       refreshTokenSecret =
-           refreshTokenSecret, // ignore: prefer_initializing_formals
+  }) : accessTokenSecret = accessTokenSecret, // ignore: prefer_initializing_formals
+       refreshTokenSecret = refreshTokenSecret, // ignore: prefer_initializing_formals
        privateKeyPem = null,
        publicKeyPem = null;
 
@@ -252,9 +250,18 @@ class JwtService {
 
   bool _isValidPayload(Map<String, dynamic> payload) {
     const required = ['sub', 'iat', 'exp', 'jti', 'iss', 'aud', 'type'];
-    return required.every(
+    if (!required.every(
       (claim) => payload.containsKey(claim) && payload[claim] != null,
-    );
+    )) {
+      return false;
+    }
+    return payload['sub'] is String &&
+        payload['jti'] is String &&
+        payload['iss'] is String &&
+        payload['aud'] is String &&
+        payload['type'] is String &&
+        payload['iat'] is int &&
+        payload['exp'] is int;
   }
 
   String _generateUniqueTokenId() {

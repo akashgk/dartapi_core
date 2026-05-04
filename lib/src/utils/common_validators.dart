@@ -3,7 +3,7 @@ import 'validator.dart';
 /// Validates that a string matches a valid email format.
 class EmailValidator extends Validators<String> {
   EmailValidator([super.validationErrorMessage = 'Invalid email address']);
-  final _emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
+  final _emailRegex = RegExp(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$');
 
   @override
   bool validate(dynamic value) => _emailRegex.hasMatch(value as String);
