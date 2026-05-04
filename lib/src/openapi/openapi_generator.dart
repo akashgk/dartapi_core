@@ -74,6 +74,7 @@ class OpenApiGenerator {
       if (route.description != null) {
         operation['description'] = route.description;
       }
+      if (route.deprecated) operation['deprecated'] = true;
 
       // Parameters: path params first, then query params.
       final parameters = <Map<String, dynamic>>[];

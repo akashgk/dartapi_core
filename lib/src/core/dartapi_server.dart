@@ -14,10 +14,12 @@ import 'logger.dart';
 import 'metrics_controller.dart';
 import 'router_manager.dart';
 import 'service_registry.dart';
+import '../middleware/body_size_limit_middleware.dart';
 import '../middleware/compression_middleware.dart';
 import '../middleware/metrics_middleware.dart';
 import '../middleware/rate_limit_middleware.dart';
 import '../middleware/request_id_middleware.dart';
+import '../middleware/security_headers_middleware.dart';
 import '../middleware/timeout_middleware.dart';
 import '../openapi/docs_controller.dart';
 
@@ -62,6 +64,9 @@ class DartAPI {
   int? _rateLimitMaxRequests;
   Duration? _rateLimitWindow;
   String Function(Request)? _rateLimitKeyExtractor;
+  int? _bodySizeLimitMaxBytes;
+  bool _securityHeadersEnabled = false;
+  Map<String, dynamic> _securityHeadersOptions = const {};
 
   DartAPI({this.corsOrigin = '*', this.appName = 'dartapi'});
 
@@ -153,6 +158,52 @@ class DartAPI {
     _rateLimitKeyExtractor = keyExtractor;
   }
 
+  /// Rejects requests whose `Content-Length` exceeds [maxBytes] with
+  /// `413 Payload Too Large` before the body is read.
+  ///
+  /// Default limit: 1 MB. Only enforced when the client sends `Content-Length`.
+  ///
+  /// ```dart
+  /// app.enableBodySizeLimit(maxBytes: 512 * 1024); // 512 KB
+  /// ```
+  void enableBodySizeLimit({int maxBytes = 1024 * 1024}) {
+    _bodySizeLimitMaxBytes = maxBytes;
+  }
+
+  /// Adds common security headers to every response.
+  ///
+  /// Defaults protect against click-jacking, MIME-sniffing, and XSS.
+  /// Pass explicit values to tighten the policy for your application.
+  ///
+  /// ```dart
+  /// app.enableSecurityHeaders(
+  ///   contentSecurityPolicy: "default-src 'self'",
+  ///   strictTransportSecurity: 'max-age=31536000; includeSubDomains',
+  /// );
+  /// ```
+  void enableSecurityHeaders({
+    String xFrameOptions = 'DENY',
+    String xContentTypeOptions = 'nosniff',
+    String referrerPolicy = 'strict-origin-when-cross-origin',
+    String xXssProtection = '1; mode=block',
+    String permissionsPolicy = 'camera=(), microphone=(), geolocation=()',
+    String? contentSecurityPolicy,
+    String? strictTransportSecurity,
+  }) {
+    _securityHeadersEnabled = true;
+    _securityHeadersOptions = {
+      'xFrameOptions': xFrameOptions,
+      'xContentTypeOptions': xContentTypeOptions,
+      'referrerPolicy': referrerPolicy,
+      'xXssProtection': xXssProtection,
+      'permissionsPolicy': permissionsPolicy,
+      if (contentSecurityPolicy != null)
+        'contentSecurityPolicy': contentSecurityPolicy,
+      if (strictTransportSecurity != null)
+        'strictTransportSecurity': strictTransportSecurity,
+    };
+  }
+
   /// Registers `GET /metrics` in Prometheus text format and adds
   /// [metricsMiddleware] to the pipeline so every request is instrumented.
   void enableMetrics() {
@@ -161,7 +212,22 @@ class DartAPI {
   }
 
   /// Registers `GET /health` — returns `{"status":"ok","uptime":"..."}`.
-  void enableHealthCheck() => _router.registerController(HealthController());
+  ///
+  /// Pass [checks] to include named dependency checks in the response body.
+  /// The `status` field becomes `"degraded"` if any check returns unhealthy.
+  ///
+  /// ```dart
+  /// app.enableHealthCheck(checks: [
+  ///   () async {
+  ///     final ok = await db.ping().timeout(Duration(seconds: 2),
+  ///         onTimeout: () => false);
+  ///     return HealthCheckResult(name: 'database', healthy: ok);
+  ///   },
+  /// ]);
+  /// ```
+  void enableHealthCheck({
+    List<Future<HealthCheckResult> Function()> checks = const [],
+  }) => _router.registerController(HealthController(checks: checks));
 
   /// Registers OpenAPI docs at `/openapi.json`, `/docs` (Swagger UI), and
   /// `/redoc`. Call this *after* [addControllers] so all routes are collected.
@@ -249,6 +315,12 @@ class DartAPI {
       pipeline = pipeline.addMiddleware(backgroundTaskMiddleware());
     }
 
+    if (_bodySizeLimitMaxBytes != null) {
+      pipeline = pipeline.addMiddleware(
+        bodySizeLimitMiddleware(maxBytes: _bodySizeLimitMaxBytes!),
+      );
+    }
+
     pipeline = pipeline
         .addMiddleware(loggingMiddleware())
         .addMiddleware(
@@ -271,6 +343,25 @@ class DartAPI {
 
     if (_metricsEnabled) {
       pipeline = pipeline.addMiddleware(metricsMiddleware());
+    }
+
+    if (_securityHeadersEnabled) {
+      final opts = _securityHeadersOptions;
+      pipeline = pipeline.addMiddleware(
+        securityHeadersMiddleware(
+          xFrameOptions: opts['xFrameOptions'] as String? ?? 'DENY',
+          xContentTypeOptions:
+              opts['xContentTypeOptions'] as String? ?? 'nosniff',
+          referrerPolicy: opts['referrerPolicy'] as String? ??
+              'strict-origin-when-cross-origin',
+          xXssProtection: opts['xXssProtection'] as String? ?? '1; mode=block',
+          permissionsPolicy: opts['permissionsPolicy'] as String? ??
+              'camera=(), microphone=(), geolocation=()',
+          contentSecurityPolicy: opts['contentSecurityPolicy'] as String?,
+          strictTransportSecurity:
+              opts['strictTransportSecurity'] as String?,
+        ),
+      );
     }
 
     final handler = pipeline.addHandler(_router.handler.call);

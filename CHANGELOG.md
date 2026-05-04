@@ -1,3 +1,15 @@
+## 0.1.9
+
+**New features.**
+
+- Add `bodySizeLimitMiddleware({int maxBytes})` — rejects requests whose `Content-Length` exceeds the limit with `413 Payload Too Large` before the body is read. Default 1 MB. Enable via `app.enableBodySizeLimit()`.
+- Add `securityHeadersMiddleware({...})` — adds `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `X-XSS-Protection`, `Permissions-Policy`, and optional `Content-Security-Policy` / `Strict-Transport-Security` headers. Enable via `app.enableSecurityHeaders()`.
+- Add `excludePaths` parameter to `loggingMiddleware` — paths with any matching prefix are silently skipped (e.g. `excludePaths: ['/health', '/metrics']`).
+- Add `HealthCheckResult` class and `checks` parameter to `HealthController` / `app.enableHealthCheck()` — run named async health checks; `status` becomes `"degraded"` if any check is unhealthy.
+- Add `deprecated` flag to `ApiRoute` — emits `deprecated: true` in the OpenAPI spec and adds a `Deprecation: true` response header (RFC 8594).
+- Replace threshold-based cache sweep with proper LRU eviction in `cacheMiddleware` — oldest unused entry is evicted when `maxEntries` (default 500) is reached; cache hits promote the entry to most-recently-used.
+- Add `app.enableBodySizeLimit()` and `app.enableSecurityHeaders()` convenience methods on `DartAPI`.
+
 ## 0.1.8
 
 **Bug fixes and hardening.**

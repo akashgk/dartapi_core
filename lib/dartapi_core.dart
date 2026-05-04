@@ -38,6 +38,8 @@ export 'src/middleware/compression_middleware.dart';
 export 'src/middleware/cache_middleware.dart';
 export 'src/middleware/timeout_middleware.dart';
 export 'src/middleware/metrics_middleware.dart';
+export 'src/middleware/body_size_limit_middleware.dart';
+export 'src/middleware/security_headers_middleware.dart';
 
 export 'src/core/metrics_controller.dart';
 

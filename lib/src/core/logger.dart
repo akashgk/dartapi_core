@@ -16,19 +16,31 @@ enum LogFormat {
 
 /// Logs every request in the chosen [format] (default: [LogFormat.text]).
 ///
+/// [excludePaths] is a list of path prefixes that will not be logged.
+/// Useful for suppressing noisy health-check and metrics polling:
+///
 /// ```dart
 /// // Plain text (default)
 /// .addMiddleware(loggingMiddleware())
 ///
+/// // Suppress /health and /metrics from logs
+/// .addMiddleware(loggingMiddleware(excludePaths: ['/health', '/metrics']))
+///
 /// // Structured JSON — ideal for Datadog, GCP Logging, ELK, etc.
 /// .addMiddleware(loggingMiddleware(format: LogFormat.json))
 /// ```
-Middleware loggingMiddleware({LogFormat format = LogFormat.text}) {
+Middleware loggingMiddleware({
+  LogFormat format = LogFormat.text,
+  List<String> excludePaths = const [],
+}) {
   return (Handler innerHandler) {
     return (Request request) async {
       final sw = Stopwatch()..start();
       final response = await innerHandler(request);
       sw.stop();
+
+      final path = request.requestedUri.path;
+      if (excludePaths.any((p) => path.startsWith(p))) return response;
 
       if (format == LogFormat.json) {
         final entry = <String, dynamic>{

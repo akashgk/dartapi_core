@@ -133,6 +133,25 @@ class ApiRoute<ApiInput, ApiOutput> {
   /// ```
   final List<String> tags;
 
+  /// Marks this route as deprecated.
+  ///
+  /// When `true`:
+  /// - The `deprecated: true` flag appears in the OpenAPI spec, displaying
+  ///   a strikethrough in Swagger UI and ReDoc.
+  /// - Responses carry a `Deprecation: true` header (RFC 8594) so clients
+  ///   that observe HTTP headers can detect the deprecation at runtime.
+  ///
+  /// ```dart
+  /// ApiRoute(
+  ///   method: ApiMethod.get,
+  ///   path: '/v1/users',
+  ///   deprecated: true,
+  ///   summary: 'List users (deprecated — use /v2/users)',
+  ///   typedHandler: listUsersV1,
+  /// )
+  /// ```
+  final bool deprecated;
+
   /// Creates a new [ApiRoute] instance.
   ///
   /// You must provide the [method], [path], and [typedHandler].
@@ -153,6 +172,7 @@ class ApiRoute<ApiInput, ApiOutput> {
     this.contentType = 'application/json',
     this.queryParams = const [],
     this.tags = const [],
+    this.deprecated = false,
   });
 
   /// Returns a copy of this route with the given [newTags], leaving all other
@@ -175,6 +195,7 @@ class ApiRoute<ApiInput, ApiOutput> {
         contentType: contentType,
         queryParams: queryParams,
         tags: newTags,
+        deprecated: deprecated,
       );
 
   /// Effective middlewares for this route, including [cacheMiddleware] when
@@ -211,7 +232,10 @@ class ApiRoute<ApiInput, ApiOutput> {
       return Response(
         statusCode,
         body: _serialize(result),
-        headers: {'Content-Type': contentType},
+        headers: {
+          'Content-Type': contentType,
+          if (deprecated) 'Deprecation': 'true',
+        },
       );
     } on ValidationException catch (e) {
       return Response(
