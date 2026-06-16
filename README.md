@@ -360,10 +360,25 @@ ApiRoute<void, UserProfile>(
 
 ### Token revocation
 
+Revocation is session-wide: an access token and the refresh token derived from
+it share a session id (`sid`), so logging out with either one invalidates both.
+
 ```dart
+final accessToken  = jwt.generateAccessToken(claims: {'sub': 'user-123'});
+final refreshToken = jwt.generateRefreshToken(accessToken: accessToken);
+
 await jwt.revokeToken(accessToken);
-final payload = await jwt.verifyAccessToken(accessToken); // null
+
+await jwt.verifyAccessToken(accessToken);   // null
+await jwt.verifyRefreshToken(refreshToken); // null — companion is killed too
 ```
+
+Revoked entries are stored only until the underlying token would expire, after
+which they are pruned automatically — the denylist never grows unbounded. A
+custom [`TokenStore`] receives this expiry via `revoke(id, expiresAt)` and can
+map it onto a backend TTL (e.g. Redis key expiry). Refresh-token rotation
+(performed by `verifyRefreshToken` when a store is configured) revokes only the
+single refresh token by `jti`, leaving the rest of the session valid.
 
 ### API key middleware
 

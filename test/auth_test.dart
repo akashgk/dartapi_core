@@ -84,6 +84,8 @@ void main() {
   group('InMemoryTokenStore', () {
     late InMemoryTokenStore store;
 
+    final future = DateTime.now().add(const Duration(hours: 1));
+
     setUp(() => store = InMemoryTokenStore());
 
     test('isRevoked returns false for unknown jti', () async {
@@ -91,37 +93,59 @@ void main() {
     });
 
     test('revoke marks jti as revoked', () async {
-      await store.revoke('jti-1');
+      await store.revoke('jti-1', future);
       expect(await store.isRevoked('jti-1'), isTrue);
     });
 
     test('revoking one jti does not affect others', () async {
-      await store.revoke('jti-1');
+      await store.revoke('jti-1', future);
       expect(await store.isRevoked('jti-2'), isFalse);
     });
 
     test('revoking same jti twice is idempotent', () async {
-      await store.revoke('jti-1');
-      await store.revoke('jti-1');
+      await store.revoke('jti-1', future);
+      await store.revoke('jti-1', future);
       expect(await store.isRevoked('jti-1'), isTrue);
     });
 
     test('clear removes all revoked entries', () async {
-      await store.revoke('jti-1');
-      await store.revoke('jti-2');
+      await store.revoke('jti-1', future);
+      await store.revoke('jti-2', future);
       store.clear();
       expect(await store.isRevoked('jti-1'), isFalse);
       expect(await store.isRevoked('jti-2'), isFalse);
     });
 
     test('multiple jtis are tracked independently', () async {
-      await store.revoke('a');
-      await store.revoke('b');
-      await store.revoke('c');
+      await store.revoke('a', future);
+      await store.revoke('b', future);
+      await store.revoke('c', future);
       expect(await store.isRevoked('a'), isTrue);
       expect(await store.isRevoked('b'), isTrue);
       expect(await store.isRevoked('c'), isTrue);
       expect(await store.isRevoked('d'), isFalse);
+    });
+
+    test('entry past its expiry is no longer revoked', () async {
+      await store.revoke('jti-1', DateTime.now().subtract(const Duration(seconds: 1)));
+      expect(await store.isRevoked('jti-1'), isFalse);
+    });
+
+    test('expiry already in the past is pruned from the store', () async {
+      final past = DateTime.now().subtract(const Duration(seconds: 1));
+      await store.revoke('stale', past);
+      // Trigger pruning via another revoke and confirm the stale id is gone.
+      await store.revoke('fresh', future);
+      expect(await store.isRevoked('stale'), isFalse);
+      expect(await store.isRevoked('fresh'), isTrue);
+    });
+
+    test('re-revoking with a later expiry extends the window', () async {
+      final soon = DateTime.now().add(const Duration(milliseconds: 50));
+      await store.revoke('jti-1', soon);
+      await store.revoke('jti-1', future);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(await store.isRevoked('jti-1'), isTrue);
     });
 
     test('implements TokenStore interface', () {
@@ -373,6 +397,36 @@ void main() {
       test('revokeToken is silent on two-part token', () async {
         await expectLater(svcWithStore.revokeToken('a.b'), completes);
       });
+
+      test('logout with access token also invalidates its refresh token', () async {
+        // Defect A: revoking the access token must kill the whole session, so
+        // the companion refresh token cannot mint new access tokens afterwards.
+        final access = svcWithStore.generateAccessToken(claims: {'sub': 'u1'});
+        final refresh = svcWithStore.generateRefreshToken(accessToken: access);
+
+        await svcWithStore.revokeToken(access);
+
+        expect(await svcWithStore.verifyAccessToken(access), isNull);
+        expect(await svcWithStore.verifyRefreshToken(refresh), isNull);
+      });
+
+      test('logout with refresh token also invalidates its access token', () async {
+        final access = svcWithStore.generateAccessToken(claims: {'sub': 'u1'});
+        final refresh = svcWithStore.generateRefreshToken(accessToken: access);
+
+        await svcWithStore.revokeToken(refresh);
+
+        expect(await svcWithStore.verifyRefreshToken(refresh), isNull);
+        expect(await svcWithStore.verifyAccessToken(access), isNull);
+      });
+
+      test('revoking one session does not affect another session', () async {
+        final a1 = svcWithStore.generateAccessToken(claims: {'sub': 'u1'});
+        final a2 = svcWithStore.generateAccessToken(claims: {'sub': 'u1'});
+        await svcWithStore.revokeToken(a1);
+        expect(await svcWithStore.verifyAccessToken(a1), isNull);
+        expect(await svcWithStore.verifyAccessToken(a2), isNotNull);
+      });
     });
 
     group('refresh token rotation', () {
@@ -396,6 +450,18 @@ void main() {
 
         expect(await svc.verifyRefreshToken(refresh), isNotNull);
         expect(await svc.verifyRefreshToken(refresh), isNotNull);
+      });
+
+      test('rotating a refresh token leaves the session access token valid', () async {
+        final store = InMemoryTokenStore();
+        final svc = _hs256(store: store);
+        final access = svc.generateAccessToken(claims: {'sub': 'u1'});
+        final refresh = svc.generateRefreshToken(accessToken: access);
+
+        // Using the refresh token revokes only that token, not the session.
+        expect(await svc.verifyRefreshToken(refresh), isNotNull);
+        expect(await svc.verifyRefreshToken(refresh), isNull); // rotated
+        expect(await svc.verifyAccessToken(access), isNotNull); // still valid
       });
     });
 
