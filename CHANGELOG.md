@@ -1,5 +1,10 @@
 ## 0.1.9
 
+**Auth — token revocation fixes.**
+
+- Session-wide revocation: access tokens and the refresh token derived from them now share a session id (`sid`) claim. `JwtService.revokeToken` revokes the whole session, so logging out with an access token also invalidates its companion refresh token (previously the refresh token survived logout). Refresh-token rotation still revokes only the single refresh token by `jti`, leaving the rest of the session valid.
+- Revocation entries now expire: `TokenStore.revoke` takes an `expiresAt` and `InMemoryTokenStore` prunes entries once the underlying token has expired, so the denylist no longer grows without bound. **Breaking for custom `TokenStore` implementations:** `revoke(String jti)` is now `revoke(String id, DateTime expiresAt)`. `JwtService`'s public method signatures are unchanged.
+
 **New features.**
 
 - Add `bodySizeLimitMiddleware({int maxBytes})` — rejects requests whose `Content-Length` exceeds the limit with `413 Payload Too Large` before the body is read. Default 1 MB. Enable via `app.enableBodySizeLimit()`.

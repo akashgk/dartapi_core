@@ -399,6 +399,9 @@ Future<void> main() async {
           final newAccess = jwt.generateAccessToken(claims: {
             'sub': claims['sub'],
             'email': claims['email'] ?? '',
+            // Carry the session id forward so the refreshed access token stays
+            // part of the same session — logout still invalidates everything.
+            if (claims['sid'] != null) 'sid': claims['sid'],
           });
           return {'accessToken': newAccess};
         },
