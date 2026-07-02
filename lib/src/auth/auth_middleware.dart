@@ -7,7 +7,8 @@ import 'jwt_service.dart';
 
 /// Middleware to protect routes using JWT Bearer token authentication.
 ///
-/// Returns `403 Forbidden` when the token is absent, expired, or invalid.
+/// Returns `401 Unauthorized` (with a `WWW-Authenticate: Bearer` header, per
+/// RFC 6750) when the token is absent, expired, or invalid.
 /// On success, the decoded payload is stored in `request.context['user']`
 /// for downstream handlers.
 ///
@@ -28,19 +29,13 @@ Middleware authMiddleware(JwtService jwtService) {
       final token = request.headers.getToken();
 
       if (token == null || token.isEmpty) {
-        return Response.forbidden(
-          jsonEncode({'error': 'Missing or invalid token'}),
-          headers: {'Content-Type': 'application/json'},
-        );
+        return _unauthorized('Missing or invalid token');
       }
 
       final payload = await jwtService.verifyAccessToken(token);
 
       if (payload == null) {
-        return Response.forbidden(
-          jsonEncode({'error': 'Invalid token'}),
-          headers: {'Content-Type': 'application/json'},
-        );
+        return _unauthorized('Invalid token');
       }
 
       request = request.change(context: {'user': payload});
@@ -48,3 +43,9 @@ Middleware authMiddleware(JwtService jwtService) {
     };
   };
 }
+
+Response _unauthorized(String message) => Response(
+  401,
+  body: jsonEncode({'error': message}),
+  headers: {'Content-Type': 'application/json', 'WWW-Authenticate': 'Bearer'},
+);

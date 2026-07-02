@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:mime/mime.dart';
 import 'package:shelf/shelf.dart';
@@ -61,7 +62,9 @@ extension MultipartExtensions on Request {
       final name = _headerParam(disposition, 'name') ?? '';
       final filename = _headerParam(disposition, 'filename');
       final ct = part.headers['content-type'] ?? 'text/plain';
-      final bytes = await part.fold<List<int>>([], (a, b) => [...a, ...b]);
+      final builder = BytesBuilder(copy: false);
+      await part.forEach(builder.add);
+      final bytes = builder.takeBytes();
       result.add(
         UploadedFile(
           fieldName: name,
@@ -104,7 +107,8 @@ extension MultipartExtensions on Request {
 
   String _boundary() {
     final ct = headers['content-type'] ?? '';
-    final match = RegExp(r'boundary=([^\s;]+)').firstMatch(ct);
+    // The boundary parameter may be quoted: boundary="----abc123".
+    final match = RegExp(r'boundary="?([^\s;"]+)"?').firstMatch(ct);
     if (match == null) {
       throw FormatException('Missing boundary in Content-Type: $ct');
     }

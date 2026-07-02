@@ -93,5 +93,19 @@ void main() {
       final res = await h(_req());
       expect(res.headers['x-custom'], equals('my-value'));
     });
+
+    test('adds Vary: Accept-Encoding when compressing', () async {
+      final handler = _makeHandler('a' * 200, threshold: 100);
+      final res = await handler(_req());
+      expect(res.headers['vary'], equals('Accept-Encoding'));
+    });
+
+    test('appends Accept-Encoding to an existing Vary header', () async {
+      final h = compressionMiddleware(threshold: 0)(
+        (req) => Response.ok('x' * 200, headers: {'Vary': 'Origin'}),
+      );
+      final res = await h(_req());
+      expect(res.headers['vary'], equals('Origin, Accept-Encoding'));
+    });
   });
 }

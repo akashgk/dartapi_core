@@ -4,16 +4,14 @@ import 'package:dartapi_core/dartapi_core.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
-Request makeHealthReq() =>
-    Request('GET', Uri.parse('http://localhost/health'));
+Request makeHealthReq() => Request('GET', Uri.parse('http://localhost/health'));
 
 void main() {
   group('HealthController with checks', () {
     test('no checks → status ok, no checks field', () async {
       final controller = HealthController();
       final res = await controller.routes.first.handler(makeHealthReq());
-      final body =
-          jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
       expect(body['status'], equals('ok'));
       expect(body.containsKey('checks'), isFalse);
     });
@@ -26,8 +24,7 @@ void main() {
         ],
       );
       final res = await controller.routes.first.handler(makeHealthReq());
-      final body =
-          jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
       expect(body['status'], equals('ok'));
     });
 
@@ -36,15 +33,14 @@ void main() {
         checks: [
           () async => const HealthCheckResult(name: 'db', healthy: true),
           () async => const HealthCheckResult(
-                name: 'cache',
-                healthy: false,
-                message: 'connection refused',
-              ),
+            name: 'cache',
+            healthy: false,
+            message: 'connection refused',
+          ),
         ],
       );
       final res = await controller.routes.first.handler(makeHealthReq());
-      final body =
-          jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
       expect(body['status'], equals('degraded'));
     });
 
@@ -53,15 +49,14 @@ void main() {
         checks: [
           () async => const HealthCheckResult(name: 'db', healthy: true),
           () async => const HealthCheckResult(
-                name: 'stripe',
-                healthy: false,
-                message: 'timeout',
-              ),
+            name: 'stripe',
+            healthy: false,
+            message: 'timeout',
+          ),
         ],
       );
       final res = await controller.routes.first.handler(makeHealthReq());
-      final body =
-          jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
       final checks = body['checks'] as Map<String, dynamic>;
       expect((checks['db'] as Map)['healthy'], isTrue);
       expect((checks['stripe'] as Map)['healthy'], isFalse);
@@ -75,10 +70,25 @@ void main() {
         ],
       );
       final res = await controller.routes.first.handler(makeHealthReq());
-      final body =
-          jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
       final dbCheck = (body['checks'] as Map)['db'] as Map<String, dynamic>;
       expect(dbCheck.containsKey('message'), isFalse);
+    });
+
+    test('throwing check → status degraded, not a 500', () async {
+      final controller = HealthController(
+        checks: [
+          () async => const HealthCheckResult(name: 'db', healthy: true),
+          () async => throw Exception('connection refused'),
+        ],
+      );
+      final res = await controller.routes.first.handler(makeHealthReq());
+      expect(res.statusCode, equals(200));
+      final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      expect(body['status'], equals('degraded'));
+      final failed = (body['checks'] as Map)['check_1'] as Map;
+      expect(failed['healthy'], isFalse);
+      expect(failed['message'], contains('connection refused'));
     });
   });
 }

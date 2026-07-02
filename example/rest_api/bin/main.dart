@@ -28,7 +28,8 @@ void main() async {
         method: ApiMethod.post,
         path: '/auth/login',
         summary: 'Login',
-        description: 'Returns an access token.\n\nDemo: `{"email":"demo@example.com","password":"demo1234"}`',
+        description:
+            'Returns an access token.\n\nDemo: `{"email":"demo@example.com","password":"demo1234"}`',
         dtoParser: (json) => json,
         requestSchema: {
           'type': 'object',
@@ -45,7 +46,9 @@ void main() async {
             throw const ApiException(401, 'Invalid credentials');
           }
           return {
-            'accessToken': jwt.generateAccessToken(claims: {'sub': '1', 'email': email}),
+            'accessToken': jwt.generateAccessToken(
+              claims: {'sub': '1', 'email': email},
+            ),
           };
         },
       ),
@@ -69,16 +72,16 @@ void main() async {
       },
       'BookDTO': BookDTO.schema,
     },
-    tagDescriptions: {
-      'Books': 'CRUD operations for the book catalogue',
-    },
+    tagDescriptions: {'Books': 'CRUD operations for the book catalogue'},
   );
 
   final port = int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
 
   print('Books REST API  →  http://localhost:$port');
   print('  Swagger UI:  http://localhost:$port/docs');
-  print('  Login:       POST /auth/login  {"email":"demo@example.com","password":"demo1234"}');
+  print(
+    '  Login:       POST /auth/login  {"email":"demo@example.com","password":"demo1234"}',
+  );
 
   await app.start(port: port);
 }

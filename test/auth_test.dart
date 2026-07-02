@@ -523,26 +523,27 @@ void main() {
       expect(capturedUser!['role'], 'admin');
     });
 
-    test('returns 403 when Authorization header is absent', () async {
+    test('returns 401 when Authorization header is absent', () async {
       final res = await protected(_request('/secure'));
-      expect(res.statusCode, 403);
+      expect(res.statusCode, 401);
+      expect(res.headers['www-authenticate'], 'Bearer');
       final body = jsonDecode(await res.readAsString()) as Map;
       expect(body['error'], contains('Missing or invalid token'));
     });
 
-    test('returns 403 when token is invalid', () async {
+    test('returns 401 when token is invalid', () async {
       final res = await protected(
         _request(
           '/secure',
           headers: {'Authorization': 'Bearer bad.token.here'},
         ),
       );
-      expect(res.statusCode, 403);
+      expect(res.statusCode, 401);
       final body = jsonDecode(await res.readAsString()) as Map;
       expect(body['error'], contains('Invalid token'));
     });
 
-    test('returns 403 when token is expired', () async {
+    test('returns 401 when token is expired', () async {
       final expired = JWT({
         'sub': 'u1',
         'type': 'access',
@@ -563,10 +564,10 @@ void main() {
       final res = await protected(
         _request('/secure', headers: {'Authorization': 'Bearer $expired'}),
       );
-      expect(res.statusCode, 403);
+      expect(res.statusCode, 401);
     });
 
-    test('returns 403 when token is tampered', () async {
+    test('returns 401 when token is tampered', () async {
       final token = svc.generateAccessToken(claims: {'sub': 'u1'});
       final parts = token.split('.');
       final tampered =
@@ -574,10 +575,10 @@ void main() {
       final res = await protected(
         _request('/secure', headers: {'Authorization': 'Bearer $tampered'}),
       );
-      expect(res.statusCode, 403);
+      expect(res.statusCode, 401);
     });
 
-    test('returns 403 when token is revoked', () async {
+    test('returns 401 when token is revoked', () async {
       final store = InMemoryTokenStore();
       final svcWithStore = _hs256(store: store);
       final handler = authMiddleware(svcWithStore)((_) => Response.ok('ok'));
@@ -586,7 +587,7 @@ void main() {
       final res = await handler(
         _request('/secure', headers: {'Authorization': 'Bearer $token'}),
       );
-      expect(res.statusCode, 403);
+      expect(res.statusCode, 401);
     });
 
     test('response content-type is application/json on rejection', () async {

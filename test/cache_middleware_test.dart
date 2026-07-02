@@ -132,6 +132,28 @@ void main() {
     });
   });
 
+  group('cacheMiddleware - Set-Cookie safety', () {
+    test('does not cache responses that set cookies', () async {
+      var calls = 0;
+      final handler = cacheMiddleware()((req) async {
+        calls++;
+        return Response.ok(
+          'v$calls',
+          headers: {'set-cookie': 'session=$calls'},
+        );
+      });
+
+      await handler(Request('GET', Uri.parse('http://localhost/login')));
+      final second = await handler(
+        Request('GET', Uri.parse('http://localhost/login')),
+      );
+
+      expect(calls, equals(2));
+      expect(second.headers['x-cache'], isNot(equals('HIT')));
+      expect(await second.readAsString(), equals('v2'));
+    });
+  });
+
   group('cacheMiddleware - per-route via ApiRoute.cacheTtl', () {
     // Mirrors RouterManager: apply effectiveMiddlewares around route.handler.
     Handler buildHandler(ApiRoute route) {

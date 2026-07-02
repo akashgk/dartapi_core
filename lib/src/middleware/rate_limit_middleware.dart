@@ -34,6 +34,9 @@ Middleware rateLimitMiddleware({
   String Function(Request)? keyExtractor,
 }) {
   final buckets = HashMap<String, _Bucket>();
+  // Prune expired buckets periodically so the map cannot grow without bound
+  // when keyed by high-cardinality values (e.g. many unique client IPs).
+  var nextPrune = DateTime.now().add(window);
 
   return (Handler inner) {
     return (Request request) async {
@@ -41,6 +44,10 @@ Middleware rateLimitMiddleware({
           keyExtractor != null ? keyExtractor(request) : _clientIp(request);
 
       final now = DateTime.now();
+      if (now.isAfter(nextPrune)) {
+        buckets.removeWhere((_, b) => now.isAfter(b.windowEnd));
+        nextPrune = now.add(window);
+      }
       final bucket = buckets.putIfAbsent(
         key,
         () => _Bucket(maxRequests, now, window),
@@ -72,9 +79,10 @@ Middleware rateLimitMiddleware({
       bucket.tokens--;
 
       final response = await inner(request);
+      // change() merges with existing headers, preserving multi-value
+      // headers such as Set-Cookie.
       return response.change(
         headers: {
-          ...response.headersAll.map((k, v) => MapEntry(k, v.join(','))),
           'X-RateLimit-Limit': maxRequests.toString(),
           'X-RateLimit-Remaining': bucket.tokens.toString(),
           'X-RateLimit-Reset':

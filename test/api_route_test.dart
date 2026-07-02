@@ -210,8 +210,9 @@ void main() {
       );
 
       expect(response.statusCode, equals(500));
-      final body = await response.readAsString();
-      expect(body, contains('Unable to serialize'));
+      final body = jsonDecode(await response.readAsString());
+      // Internal details must not leak to the client.
+      expect(body['error'], equals('Internal Server Error'));
     });
   });
 
@@ -427,6 +428,87 @@ void main() {
       await route.handler(Request('GET', Uri.parse('http://localhost/test')));
       expect(captured, isNull);
     });
+  });
+
+  group('ApiRoute - serialization & body validation', () {
+    test('serializes a List of Serializable objects', () async {
+      final route = ApiRoute<void, List<_TestModel>>(
+        method: ApiMethod.get,
+        path: '/models',
+        typedHandler: (req, _) async => [_TestModel('a'), _TestModel('b')],
+      );
+
+      final response = await route.handler(
+        Request('GET', Uri.parse('http://localhost/models')),
+      );
+
+      expect(response.statusCode, equals(200));
+      final body = jsonDecode(await response.readAsString()) as List;
+      expect(body, [
+        {'name': 'a'},
+        {'name': 'b'},
+      ]);
+    });
+
+    test('serializes Serializable objects nested inside a Map', () async {
+      final route = ApiRoute<void, Map<String, dynamic>>(
+        method: ApiMethod.get,
+        path: '/nested',
+        typedHandler:
+            (req, _) async => {
+              'item': _TestModel('x'),
+              'items': [_TestModel('y')],
+            },
+      );
+
+      final response = await route.handler(
+        Request('GET', Uri.parse('http://localhost/nested')),
+      );
+
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['item'], {'name': 'x'});
+      expect(body['items'], [
+        {'name': 'y'},
+      ]);
+    });
+
+    test(
+      'returns 400 when body is a JSON array but a DTO is expected',
+      () async {
+        final route = ApiRoute<Map<String, dynamic>, String>(
+          method: ApiMethod.post,
+          path: '/dto',
+          dtoParser: (json) => json,
+          typedHandler: (req, dto) async => 'ok',
+        );
+
+        final response = await route.handler(
+          Request('POST', Uri.parse('http://localhost/dto'), body: '[1,2,3]'),
+        );
+
+        expect(response.statusCode, equals(400));
+      },
+    );
+
+    test(
+      '204 response carries Deprecation header on deprecated routes',
+      () async {
+        final route = ApiRoute<void, String?>(
+          method: ApiMethod.delete,
+          path: '/old',
+          deprecated: true,
+          typedHandler: (req, _) async => null,
+        );
+
+        final response = await route.handler(
+          Request('DELETE', Uri.parse('http://localhost/old')),
+        );
+
+        expect(response.statusCode, equals(204));
+        expect(response.headers['deprecation'], equals('true'));
+      },
+    );
   });
 }
 

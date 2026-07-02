@@ -56,6 +56,17 @@ class FieldSet {
       }
 
       final value = json[key];
+
+      // Check the JSON type before running validators, so a wrong-typed
+      // value produces a 422 field error instead of a cast error.
+      if (!_matchesJsonType(value, field.jsonType)) {
+        errors.add({
+          'field': key,
+          'message': 'Field "$key" must be of type ${field.jsonType}',
+        });
+        continue;
+      }
+
       for (final v in field.validators) {
         if (!v.validate(value)) {
           errors.add({'field': key, 'message': v.validationErrorMessage});
@@ -66,6 +77,16 @@ class FieldSet {
 
     if (errors.isNotEmpty) throw ValidationException(errors);
   }
+
+  static bool _matchesJsonType(dynamic value, String jsonType) =>
+      switch (jsonType) {
+        'string' => value is String,
+        'integer' => value is int,
+        'number' => value is num,
+        'boolean' => value is bool,
+        'array' => value is List,
+        _ => true,
+      };
 
   /// Returns an OpenAPI 3.0-compatible JSON Schema for this field set.
   ///

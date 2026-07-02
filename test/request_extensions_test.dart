@@ -147,6 +147,27 @@ void main() {
       expect(req.queryParam<int>('page', defaultValue: 1), equals(5));
     });
 
+    test('accepts 1/0 as bool values', () {
+      expect(
+        makeRequestWithQuery({'flag': '1'}).queryParam<bool>('flag'),
+        isTrue,
+      );
+      expect(
+        makeRequestWithQuery({'flag': '0'}).queryParam<bool>('flag'),
+        isFalse,
+      );
+    });
+
+    test('throws ApiException 400 for a non-boolean bool param', () {
+      final req = makeRequestWithQuery({'flag': 'banana'});
+      expect(
+        () => req.queryParam<bool>('flag'),
+        throwsA(
+          isA<ApiException>().having((e) => e.statusCode, 'statusCode', 400),
+        ),
+      );
+    });
+
     test('throws ApiException 400 when int query param cannot be parsed', () {
       final req = makeRequestWithQuery({'page': 'first'});
       expect(

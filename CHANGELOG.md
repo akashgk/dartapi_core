@@ -1,3 +1,36 @@
+## 0.2.0
+
+**Bug fixes, hardening, and API polish.**
+
+### Breaking changes
+
+- `authMiddleware` now returns `401 Unauthorized` with a `WWW-Authenticate: Bearer` header when the token is missing or invalid (was `403 Forbidden`), matching RFC 6750.
+- Unhandled exceptions in route handlers now return a generic `{"error":"Internal Server Error"}` body instead of leaking the exception message to the client. The full error and stack trace are logged server-side.
+- `queryParam<bool>` / `pathParam<bool>` / `header<bool>` now accept only `true`/`false`/`1`/`0` (case-insensitive) and throw `ApiException` 400 for anything else (previously any non-`'true'` value silently became `false`).
+
+### Bug fixes
+
+- Fix response serialization for `List<Serializable>` and `Serializable` objects nested inside maps/lists — `typedHandler` can now return `Future<List<UserDTO>>` directly.
+- Fix `globalExceptionMiddleware` producing invalid JSON when the error message contains quotes or backslashes.
+- Fix `requestIdMiddleware` and `rateLimitMiddleware` corrupting multi-value response headers (multiple `Set-Cookie` values were joined with commas).
+- Fix `setCookie` — multiple cookies are now sent as separate `Set-Cookie` header lines instead of being joined with a newline.
+- Fix `cacheMiddleware` caching responses that carry `Set-Cookie` — one client's session cookie could previously be replayed to other clients.
+- Fix `rateLimitMiddleware` unbounded memory growth — expired buckets are now pruned periodically.
+- Fix `FieldSet.validate` throwing a cast error (HTTP 500) when a field has the wrong JSON type — now reports a proper 422 field error (`must be of type integer`).
+- Fix `HealthController` returning 500 when a health check throws — a throwing check now marks the service `degraded` with the error message.
+- Fix multipart parsing when the boundary parameter is quoted (`boundary="..."`).
+- Fix JSON array request bodies causing a 500 when a DTO parser expects an object — now returns 400.
+- Fix `204` responses missing the `Deprecation` header on deprecated routes.
+- `compressionMiddleware` now sets `Vary: Accept-Encoding` on compressed responses.
+
+### Improvements
+
+- `DartAPI.start()` accepts an `address` parameter (default `0.0.0.0`).
+- New `DartAPI.stop({bool force})` — programmatic graceful shutdown: cancels signal watchers, runs `onShutdown` hooks, then closes the server. Safe to call multiple times.
+- New `DartAPI.configureLogging(format:, excludePaths:)` — switch the built-in request logging to JSON or silence noisy paths.
+- `JwtService` now parses RSA PEM keys once and caches them; token id generation reuses a single `Random.secure()` instance.
+- `RangeValidator` asserts that at least one bound is provided and no longer produces a "Must be at most null" message.
+
 ## 0.1.9
 
 **New features.**

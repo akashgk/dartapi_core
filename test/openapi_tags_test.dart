@@ -163,16 +163,18 @@ void main() {
       expect(tags.any((t) => t['name'] == 'Books'), isTrue);
     });
 
-    test('omits top-level tags when no routes have tags and no tagDescriptions',
-        () {
-      final route = ApiRoute<void, String>(
-        method: ApiMethod.get,
-        path: '/ping',
-        typedHandler: (req, _) async => 'ok',
-      );
-      final spec = OpenApiGenerator(routes: [route], title: 'API').generate();
-      expect(spec.containsKey('tags'), isFalse);
-    });
+    test(
+      'omits top-level tags when no routes have tags and no tagDescriptions',
+      () {
+        final route = ApiRoute<void, String>(
+          method: ApiMethod.get,
+          path: '/ping',
+          typedHandler: (req, _) async => 'ok',
+        );
+        final spec = OpenApiGenerator(routes: [route], title: 'API').generate();
+        expect(spec.containsKey('tags'), isFalse);
+      },
+    );
 
     test('includes tagDescriptions descriptions in top-level tags', () {
       final route = ApiRoute<void, String>(
@@ -181,11 +183,12 @@ void main() {
         tags: ['Books'],
         typedHandler: (req, _) async => 'ok',
       );
-      final spec = OpenApiGenerator(
-        routes: [route],
-        title: 'API',
-        tagDescriptions: {'Books': 'Book management endpoints'},
-      ).generate();
+      final spec =
+          OpenApiGenerator(
+            routes: [route],
+            title: 'API',
+            tagDescriptions: {'Books': 'Book management endpoints'},
+          ).generate();
       final tags = spec['tags'] as List;
       final bookTag = tags.firstWhere((t) => t['name'] == 'Books');
       expect(bookTag['description'], equals('Book management endpoints'));
@@ -204,16 +207,19 @@ void main() {
       expect((bookTag as Map).containsKey('description'), isFalse);
     });
 
-    test('tagDescriptions-only tag appears in top-level tags even with no routes',
-        () {
-      final spec = OpenApiGenerator(
-        routes: [],
-        title: 'API',
-        tagDescriptions: {'Misc': 'Miscellaneous'},
-      ).generate();
-      final tags = spec['tags'] as List;
-      expect(tags.any((t) => t['name'] == 'Misc'), isTrue);
-    });
+    test(
+      'tagDescriptions-only tag appears in top-level tags even with no routes',
+      () {
+        final spec =
+            OpenApiGenerator(
+              routes: [],
+              title: 'API',
+              tagDescriptions: {'Misc': 'Miscellaneous'},
+            ).generate();
+        final tags = spec['tags'] as List;
+        expect(tags.any((t) => t['name'] == 'Misc'), isTrue);
+      },
+    );
 
     test('deduplicates tags across multiple routes', () {
       final r1 = ApiRoute<void, String>(
@@ -228,8 +234,7 @@ void main() {
         tags: ['Users'],
         typedHandler: (req, _) async => 'ok',
       );
-      final spec =
-          OpenApiGenerator(routes: [r1, r2], title: 'API').generate();
+      final spec = OpenApiGenerator(routes: [r1, r2], title: 'API').generate();
       final tags = spec['tags'] as List;
       final userTags = tags.where((t) => t['name'] == 'Users').toList();
       expect(userTags.length, equals(1));

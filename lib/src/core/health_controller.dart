@@ -95,9 +95,27 @@ class HealthController extends BaseController {
     if (_checks.isEmpty) {
       return _HealthPayload(_formatUptime(_uptime.elapsed), const {});
     }
-    final results = await Future.wait(_checks.map((c) => c()));
+    // A throwing check counts as unhealthy instead of failing the endpoint.
+    final results = await Future.wait([
+      for (var i = 0; i < _checks.length; i++) _runCheck(i, _checks[i]),
+    ]);
     final checksMap = {for (final r in results) r.name: r};
     return _HealthPayload(_formatUptime(_uptime.elapsed), checksMap);
+  }
+
+  static Future<HealthCheckResult> _runCheck(
+    int index,
+    Future<HealthCheckResult> Function() check,
+  ) async {
+    try {
+      return await check();
+    } catch (e) {
+      return HealthCheckResult(
+        name: 'check_$index',
+        healthy: false,
+        message: e.toString(),
+      );
+    }
   }
 
   static String _formatUptime(Duration d) {

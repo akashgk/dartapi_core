@@ -385,11 +385,21 @@ ApiRoute(
 ```dart
 app.enableCompression();                                         // gzip responses
 app.enableBackgroundTasks();                                     // req.backgroundTasks
-app.enableTimeout(const Duration(seconds: 30));                 // 503 on timeout
+app.enableTimeout(const Duration(seconds: 30));                 // 408 on timeout
 app.enableRateLimit(maxRequests: 100, window: Duration(minutes: 1));
+app.enableBodySizeLimit(maxBytes: 1024 * 1024);                  // 413 above 1 MB
+app.enableSecurityHeaders();                                     // X-Frame-Options etc.
 app.enableMetrics();                                             // GET /metrics
 app.enableHealthCheck();                                         // GET /health
 app.enableDocs(title: 'My API', version: '1.0.0');             // GET /docs
+app.configureLogging(                                            // built-in logging
+  format: LogFormat.json,
+  excludePaths: ['/health', '/metrics'],
+);
+
+await app.start(port: 8080);   // also: address:, shared:
+// ...
+await app.stop();              // graceful shutdown (runs onShutdown hooks)
 ```
 
 ### Per-route middleware
@@ -412,8 +422,12 @@ ApiRoute(
 | `compressionMiddleware(threshold:)` | Gzip responses above threshold |
 | `backgroundTaskMiddleware()` | Enables `request.backgroundTasks` |
 | `cacheMiddleware(ttl:, keyExtractor:)` | In-memory GET cache; adds `X-Cache: HIT/MISS` |
-| `authMiddleware(jwtService)` | JWT Bearer token validation |
+| `authMiddleware(jwtService)` | JWT Bearer token validation; returns 401 with `WWW-Authenticate` |
 | `apiKeyMiddleware(validKeys:, header:)` | Static API key validation |
+| `securityHeadersMiddleware(...)` | `X-Frame-Options`, `nosniff`, CSP, HSTS, etc. |
+| `bodySizeLimitMiddleware(maxBytes:)` | Rejects oversized payloads with 413 |
+| `timeoutMiddleware(duration)` | Returns 408 when a handler exceeds the timeout |
+| `metricsMiddleware()` | Records Prometheus counters and latency histograms |
 
 ---
 

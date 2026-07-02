@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:shelf/shelf.dart';
 import 'api_exception.dart';
 
@@ -32,7 +34,7 @@ Middleware globalExceptionMiddleware({
         final apiEx = onError(e, st);
         return Response(
           apiEx.statusCode,
-          body: '{"error":"${apiEx.message}"}',
+          body: jsonEncode({'error': apiEx.message}),
           headers: {'Content-Type': 'application/json'},
         );
       }

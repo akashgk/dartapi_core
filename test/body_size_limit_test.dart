@@ -41,8 +41,7 @@ void main() {
           .addMiddleware(bodySizeLimitMiddleware(maxBytes: 100))
           .addHandler(ok);
       final res = await handler(makePost('/data', contentLength: 200));
-      final body =
-          jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
       expect(body['error'], equals('Payload Too Large'));
       expect(body['maxBytes'], equals(100));
       expect(body['receivedBytes'], equals(200));

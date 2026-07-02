@@ -104,5 +104,19 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 60));
       expect((await handler(_req())).statusCode, equals(200));
     });
+
+    test('preserves multiple Set-Cookie header values', () async {
+      final handler = rateLimitMiddleware(maxRequests: 5)(
+        (req) async => Response.ok(
+          'x',
+          headers: {
+            'set-cookie': ['a=1', 'b=2'],
+          },
+        ),
+      );
+      final res = await handler(Request('GET', Uri.parse('http://localhost/')));
+      expect(res.headersAll['set-cookie'], equals(['a=1', 'b=2']));
+      expect(res.headers['x-ratelimit-remaining'], isNotNull);
+    });
   });
 }

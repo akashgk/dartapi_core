@@ -1,3 +1,8 @@
+// The HS256 constructor takes required non-nullable secrets but stores them
+// in nullable fields (null when using RS256), so initializing formals can't
+// be used there.
+// ignore_for_file: prefer_initializing_formals
+
 import 'dart:convert';
 import 'dart:math';
 
@@ -52,8 +57,8 @@ class JwtService {
     this.refreshTokenExpiry = const Duration(days: 7),
     this.algorithm = JWTAlgorithm.HS256,
     this.tokenStore,
-  }) : accessTokenSecret = accessTokenSecret, // ignore: prefer_initializing_formals
-       refreshTokenSecret = refreshTokenSecret, // ignore: prefer_initializing_formals
+  }) : accessTokenSecret = accessTokenSecret,
+       refreshTokenSecret = refreshTokenSecret,
        privateKeyPem = null,
        publicKeyPem = null;
 
@@ -81,8 +86,8 @@ class JwtService {
     this.refreshTokenExpiry = const Duration(days: 7),
     this.tokenStore,
   }) : algorithm = JWTAlgorithm.RS256,
-       privateKeyPem = privateKeyPem, // ignore: prefer_initializing_formals
-       publicKeyPem = publicKeyPem, // ignore: prefer_initializing_formals
+       privateKeyPem = privateKeyPem,
+       publicKeyPem = publicKeyPem,
        accessTokenSecret = null,
        refreshTokenSecret = null;
 
@@ -90,22 +95,23 @@ class JwtService {
   // Internal key helpers
   // ---------------------------------------------------------------------------
 
-  JWTKey get _signKey =>
+  // Keys are cached so RSA PEM strings are parsed once, not on every call.
+  late final JWTKey _signKey =
       privateKeyPem != null
           ? RSAPrivateKey(privateKeyPem!)
           : SecretKey(accessTokenSecret!);
 
-  JWTKey get _accessVerifyKey =>
+  late final JWTKey _accessVerifyKey =
       publicKeyPem != null
           ? RSAPublicKey(publicKeyPem!)
           : SecretKey(accessTokenSecret!);
 
-  JWTKey get _refreshSignKey =>
+  late final JWTKey _refreshSignKey =
       privateKeyPem != null
           ? RSAPrivateKey(privateKeyPem!)
           : SecretKey(refreshTokenSecret!);
 
-  JWTKey get _refreshVerifyKey =>
+  late final JWTKey _refreshVerifyKey =
       publicKeyPem != null
           ? RSAPublicKey(publicKeyPem!)
           : SecretKey(refreshTokenSecret!);
@@ -264,8 +270,10 @@ class JwtService {
         payload['exp'] is int;
   }
 
+  static final Random _random = Random.secure();
+
   String _generateUniqueTokenId() {
-    final bytes = List<int>.generate(16, (_) => Random.secure().nextInt(256));
+    final bytes = List<int>.generate(16, (_) => _random.nextInt(256));
     return base64Url.encode(bytes);
   }
 }
