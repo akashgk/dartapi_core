@@ -10,6 +10,15 @@ import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 
 import 'token_store.dart';
 
+/// A matched access/refresh token pair issued together by
+/// [JwtService.generateTokenPair].
+class TokenPair {
+  final String accessToken;
+  final String refreshToken;
+
+  const TokenPair({required this.accessToken, required this.refreshToken});
+}
+
 /// Service for generating and verifying JWTs.
 ///
 /// Supports two key modes:
@@ -26,6 +35,13 @@ import 'token_store.dart';
 ///   audience: 'my-users',
 ///   tokenStore: InMemoryTokenStore(),
 /// );
+///
+/// // Login:
+/// final pair = jwtService.generateTokenPair(claims: {'sub': user.id});
+///
+/// // Logout:
+/// await jwtService.revokeToken(pair.accessToken);
+/// await jwtService.revokeToken(pair.refreshToken);
 /// ```
 class JwtService {
   // HS256 secrets — null when using RS256.
@@ -47,6 +63,29 @@ class JwtService {
   /// [revokeToken].
   final TokenStore? tokenStore;
 
+  /// Called when an already-rotated refresh token is presented again.
+  ///
+  /// Under refresh-token rotation, each refresh token is single-use. A second
+  /// use of the same token is the classic signal that the token was stolen
+  /// (either the attacker or the legitimate user used it first — the other
+  /// party's attempt trips this). Per the OAuth 2.0 Security BCP, respond by
+  /// revoking the whole session, e.g. force the user to log in again:
+  ///
+  /// ```dart
+  /// JwtService(
+  ///   ...,
+  ///   tokenStore: store,
+  ///   onRefreshTokenReuse: (payload) async {
+  ///     await sessions.terminateAllForUser(payload['sub'] as String);
+  ///   },
+  /// )
+  /// ```
+  ///
+  /// Only fires when a [tokenStore] is configured. The reused token is still
+  /// rejected (verification returns `null`) regardless of this callback.
+  final Future<void> Function(Map<String, dynamic> payload)?
+  onRefreshTokenReuse;
+
   /// Creates a [JwtService] using HMAC-SHA256 (HS256) symmetric keys.
   JwtService({
     required String accessTokenSecret,
@@ -57,6 +96,7 @@ class JwtService {
     this.refreshTokenExpiry = const Duration(days: 7),
     this.algorithm = JWTAlgorithm.HS256,
     this.tokenStore,
+    this.onRefreshTokenReuse,
   }) : accessTokenSecret = accessTokenSecret,
        refreshTokenSecret = refreshTokenSecret,
        privateKeyPem = null,
@@ -85,6 +125,7 @@ class JwtService {
     this.accessTokenExpiry = const Duration(hours: 1),
     this.refreshTokenExpiry = const Duration(days: 7),
     this.tokenStore,
+    this.onRefreshTokenReuse,
   }) : algorithm = JWTAlgorithm.RS256,
        privateKeyPem = privateKeyPem,
        publicKeyPem = publicKeyPem,
@@ -124,37 +165,81 @@ class JwtService {
   ///
   /// The token includes standard claims (`iss`, `aud`, `iat`, `exp`, `jti`,
   /// `type`) merged with any additional [claims] you provide.
-  String generateAccessToken({required Map<String, dynamic> claims}) {
-    final payload = {
-      'jti': _generateUniqueTokenId(),
-      'iss': issuer,
-      'aud': audience,
-      'type': 'access',
-      'iat': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      'exp':
-          DateTime.now().add(accessTokenExpiry).millisecondsSinceEpoch ~/ 1000,
-      ...claims,
-    };
-    return JWT(payload).sign(_signKey, algorithm: algorithm);
-  }
+  String generateAccessToken({required Map<String, dynamic> claims}) =>
+      _generateToken(type: 'access', expiry: accessTokenExpiry, claims: claims);
+
+  /// Generates a matched access/refresh [TokenPair] from [claims].
+  ///
+  /// This is the recommended way to issue tokens at login and on refresh —
+  /// both tokens are minted directly from the claims, so a refresh token can
+  /// never be derived from a (possibly stolen) access token.
+  ///
+  /// ```dart
+  /// // Login handler:
+  /// final pair = jwtService.generateTokenPair(
+  ///   claims: {'sub': user.id, 'email': user.email},
+  /// );
+  ///
+  /// // Refresh handler:
+  /// final payload = await jwtService.verifyRefreshToken(oldRefreshToken);
+  /// if (payload == null) throw ApiException(401, 'Invalid refresh token');
+  /// final pair = jwtService.generateTokenPair(
+  ///   claims: {'sub': payload['sub'], 'email': payload['email']},
+  /// );
+  /// ```
+  TokenPair generateTokenPair({required Map<String, dynamic> claims}) =>
+      TokenPair(
+        accessToken: generateAccessToken(claims: claims),
+        refreshToken: _generateToken(
+          type: 'refresh',
+          expiry: refreshTokenExpiry,
+          claims: claims,
+          key: _refreshSignKey,
+        ),
+      );
 
   /// Generates a signed refresh token derived from a valid [accessToken].
   ///
-  /// Throws if [accessToken] cannot be verified.
+  /// Throws [ArgumentError] if [accessToken] cannot be verified.
+  @Deprecated(
+    'Use generateTokenPair instead — deriving a long-lived refresh token '
+    'from a short-lived access token allows a stolen access token to be '
+    'upgraded into a refresh token. Will be removed in 0.4.0.',
+  )
   String generateRefreshToken({required String accessToken}) {
     final oldPayload = _verifyAccessTokenSync(accessToken);
     if (oldPayload == null) {
-      throw Exception('Invalid access token, cannot generate refresh token');
+      throw ArgumentError(
+        'Invalid access token, cannot generate refresh token',
+      );
     }
-    final newPayload = {
-      ...oldPayload,
-      'type': 'refresh',
+    return _generateToken(
+      type: 'refresh',
+      expiry: refreshTokenExpiry,
+      claims: oldPayload,
+      key: _refreshSignKey,
+    );
+  }
+
+  String _generateToken({
+    required String type,
+    required Duration expiry,
+    required Map<String, dynamic> claims,
+    JWTKey? key,
+  }) {
+    final now = DateTime.now();
+    // Standard claims come last so caller-supplied claims cannot override
+    // token identity or lifetime.
+    final payload = {
+      ...claims,
       'jti': _generateUniqueTokenId(),
-      'iat': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      'exp':
-          DateTime.now().add(refreshTokenExpiry).millisecondsSinceEpoch ~/ 1000,
+      'iss': issuer,
+      'aud': audience,
+      'type': type,
+      'iat': now.millisecondsSinceEpoch ~/ 1000,
+      'exp': now.add(expiry).millisecondsSinceEpoch ~/ 1000,
     };
-    return JWT(newPayload).sign(_refreshSignKey, algorithm: algorithm);
+    return JWT(payload).sign(key ?? _signKey, algorithm: algorithm);
   }
 
   // ---------------------------------------------------------------------------
@@ -180,36 +265,61 @@ class JwtService {
 
   /// Verifies a refresh token and returns its payload, or `null` if invalid.
   ///
-  /// When a [tokenStore] is configured, the token is automatically revoked
-  /// after successful verification (rotation). This prevents a refresh token
-  /// from being used more than once.
+  /// When a [tokenStore] is configured, the token is rotated: it is revoked
+  /// atomically as part of verification, so each refresh token can be used
+  /// exactly once — even under concurrent requests, only one caller receives
+  /// the payload.
+  ///
+  /// Presenting an already-rotated token is rejected and additionally fires
+  /// [onRefreshTokenReuse], since reuse indicates the token may be stolen.
   Future<Map<String, dynamic>?> verifyRefreshToken(String token) async {
     final payload = _verifyRefreshTokenSync(token);
     if (payload == null) return null;
-    final jti = payload['jti'] as String?;
-    if (tokenStore != null && jti != null) {
-      if (await tokenStore!.isRevoked(jti)) return null;
-      await tokenStore!.revoke(jti);
+    final store = tokenStore;
+    if (store != null) {
+      final rotated = await store.revokeIfActive(
+        payload['jti'] as String,
+        ttl: _remainingTtl(payload),
+      );
+      if (!rotated) {
+        // Second use of a single-use token — possible theft. Reject it and
+        // let the application revoke the whole session.
+        await onRefreshTokenReuse?.call(payload);
+        return null;
+      }
     }
     return payload;
   }
 
-  /// Revokes [token] so future verification calls return `null`.
+  /// Verifies [token]'s signature and revokes it so future verification
+  /// calls return `null`. Accepts both access and refresh tokens — call it
+  /// with each of them in a logout handler.
   ///
-  /// Has no effect if no [tokenStore] was configured.
-  Future<void> revokeToken(String token) async {
-    if (tokenStore == null) return;
-    try {
-      final parts = token.split('.');
-      if (parts.length != 3) return;
-      final payload =
-          jsonDecode(
-                utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
-              )
-              as Map<String, dynamic>;
-      final jti = payload['jti'] as String?;
-      if (jti != null) await tokenStore!.revoke(jti);
-    } catch (_) {}
+  /// Returns `true` when the token was valid and is now revoked. Returns
+  /// `false` — without touching the store — when no [tokenStore] is
+  /// configured or the token is malformed, expired, or fails signature
+  /// verification. Requiring a valid signature prevents an attacker from
+  /// revoking other users' sessions with forged tokens.
+  Future<bool> revokeToken(String token) async {
+    final store = tokenStore;
+    if (store == null) return false;
+    final payload =
+        _verifyAccessTokenSync(token) ?? _verifyRefreshTokenSync(token);
+    if (payload == null) return false;
+    await store.revoke(payload['jti'] as String, ttl: _remainingTtl(payload));
+    return true;
+  }
+
+  /// Time until the token's `exp` — how long a revocation entry must live.
+  /// Includes a one-minute grace margin to absorb clock skew.
+  Duration? _remainingTtl(Map<String, dynamic> payload) {
+    final exp = payload['exp'];
+    if (exp is! int) return null;
+    final remaining = DateTime.fromMillisecondsSinceEpoch(
+      exp * 1000,
+    ).difference(DateTime.now());
+    return (remaining.isNegative ? Duration.zero : remaining) +
+        const Duration(minutes: 1);
   }
 
   // ---------------------------------------------------------------------------

@@ -402,20 +402,24 @@ Future<void> main() async {
           if (claims == null) {
             throw const ApiException(401, 'Invalid credentials');
           }
-          final accessToken = jwt.generateAccessToken(claims: claims);
+          final pair = jwt.generateTokenPair(claims: claims);
           return {
-            'accessToken': accessToken,
-            'refreshToken': jwt.generateRefreshToken(accessToken: accessToken),
+            'accessToken': pair.accessToken,
+            'refreshToken': pair.refreshToken,
           };
         },
       ),
 
-      // POST /auth/refresh — exchange refresh token for new access token
+      // POST /auth/refresh — rotate the refresh token for a new token pair.
+      // verifyRefreshToken consumes the presented token (single use), so the
+      // response must include a fresh refresh token as well.
       ApiRoute<Map<String, dynamic>, Map<String, String>>(
         method: ApiMethod.post,
         path: '/auth/refresh',
         summary: 'Refresh token',
-        description: 'Exchange a valid refresh token for a new access token.',
+        description:
+            'Exchange a valid refresh token for a new access/refresh pair. '
+            'Refresh tokens are single-use.',
         dtoParser: (json) => json,
         requestSchema: {
           'type': 'object',
@@ -433,10 +437,13 @@ Future<void> main() async {
           if (claims == null) {
             throw const ApiException(401, 'Invalid or expired refresh token');
           }
-          final newAccess = jwt.generateAccessToken(
+          final pair = jwt.generateTokenPair(
             claims: {'sub': claims['sub'], 'email': claims['email'] ?? ''},
           );
-          return {'accessToken': newAccess};
+          return {
+            'accessToken': pair.accessToken,
+            'refreshToken': pair.refreshToken,
+          };
         },
       ),
 

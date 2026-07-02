@@ -8,7 +8,7 @@ A framework for building typed, structured REST APIs in Dart — routing, valida
 
 ```yaml
 dependencies:
-  dartapi_core: ^0.1.6
+  dartapi_core: ^0.3.0
 ```
 
 ```dart
@@ -54,7 +54,7 @@ Each example has its own `pubspec.yaml` and `README.md` with copy-paste run inst
 
 ```yaml
 dependencies:
-  dartapi_core: ^0.1.6
+  dartapi_core: ^0.3.0
 ```
 
 ---
@@ -335,12 +335,33 @@ final jwt = JwtService.rs256(
 ### Generating tokens
 
 ```dart
-final accessToken = jwt.generateAccessToken(claims: {
+final pair = jwt.generateTokenPair(claims: {
   'sub': 'user-123',
   'email': 'alice@example.com',
 });
+// pair.accessToken, pair.refreshToken
+```
 
-final refreshToken = jwt.generateRefreshToken(accessToken: accessToken);
+Refresh tokens are **single-use** when a `tokenStore` is configured: `verifyRefreshToken`
+consumes the presented token, so a refresh endpoint must return a full new pair:
+
+```dart
+final payload = await jwt.verifyRefreshToken(oldRefreshToken);
+if (payload == null) throw ApiException(401, 'Invalid refresh token');
+final pair = jwt.generateTokenPair(claims: {'sub': payload['sub']});
+```
+
+Reuse of an already-rotated refresh token is the classic token-theft signal. Hook
+`onRefreshTokenReuse` to respond (e.g. force re-login):
+
+```dart
+JwtService(
+  ...,
+  tokenStore: store,
+  onRefreshTokenReuse: (payload) async {
+    await sessions.terminateAllForUser(payload['sub'] as String);
+  },
+);
 ```
 
 ### Protecting routes
@@ -361,9 +382,20 @@ ApiRoute<void, UserProfile>(
 ### Token revocation
 
 ```dart
-await jwt.revokeToken(accessToken);
+// Logout handler — revoke both tokens:
+final revoked = await jwt.revokeToken(accessToken);   // true when verified + revoked
+await jwt.revokeToken(refreshToken);
+
 final payload = await jwt.verifyAccessToken(accessToken); // null
 ```
+
+`revokeToken` verifies the token's signature before revoking, so forged tokens
+cannot revoke other users' sessions. Revocation entries carry a TTL matching the
+token's remaining lifetime — `InMemoryTokenStore` prunes them automatically, and
+custom `TokenStore` backends receive the TTL (e.g. for Redis `SET ... EX`).
+Distributed backends should also override `TokenStore.revokeIfActive` with an
+atomic operation (Redis `SET NX EX`) so refresh rotation stays single-use across
+instances.
 
 ### API key middleware
 

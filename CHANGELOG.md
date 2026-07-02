@@ -1,3 +1,29 @@
+## 0.3.0
+
+**Secure token revocation and refresh rotation.**
+
+### Breaking changes
+
+- `JwtService.revokeToken` now **verifies the token's signature before revoking** and returns `Future<bool>` (`true` when verified and revoked). Previously it blindly base64-decoded the payload, so an attacker who learned a `jti` could revoke another user's session with a forged token.
+- `TokenStore.revoke` gained a `{Duration? ttl}` parameter — the time remaining until the token's own `exp` (plus a one-minute clock-skew grace). Backends should use it to expire revocation entries (e.g. Redis `SET key 1 EX ttl`) so the store does not grow forever. Custom implementations must add the parameter.
+- `TokenStore` is now an abstract **base class** with a concrete `revokeIfActive(jti, {ttl})` method — extend it rather than implement it. `revokeIfActive` atomically revokes a jti and reports whether it was still active; distributed backends should override it with an atomic operation (Redis `SET NX EX`, SQL `INSERT ... ON CONFLICT DO NOTHING`).
+- `generateAccessToken` / `generateTokenPair` no longer allow caller claims to override the protected standard claims (`jti`, `iss`, `aud`, `type`, `iat`, `exp`).
+
+### Deprecations
+
+- `generateRefreshToken({required String accessToken})` is deprecated — deriving a long-lived refresh token from a short-lived access token allows a stolen access token to be upgraded. Use `generateTokenPair` instead. Will be removed in 0.4.0.
+
+### New features
+
+- `generateTokenPair({required claims})` — issues a matched access/refresh `TokenPair` directly from claims; the recommended API for login and refresh endpoints.
+- `onRefreshTokenReuse` callback on `JwtService` — fires when an already-rotated refresh token is presented again (the classic token-theft signal per the OAuth 2.0 Security BCP), so applications can terminate the whole session.
+- Refresh rotation is now **atomic**: `verifyRefreshToken` uses `TokenStore.revokeIfActive`, so under concurrent use of the same refresh token exactly one caller succeeds (fixes a check-then-revoke race).
+- `InMemoryTokenStore` prunes expired revocation entries automatically — memory is bounded by the number of tokens revoked within one token lifetime.
+
+### Fixes
+
+- `example/dartapi_core_example.dart` refresh endpoint now returns a full new token pair — previously it consumed the single-use refresh token but only returned a new access token, stranding the client.
+
 ## 0.2.0
 
 **Bug fixes, hardening, and API polish.**
