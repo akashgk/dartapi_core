@@ -47,12 +47,12 @@ Response setCookie(
   if (httpOnly) parts.add('HttpOnly');
   if (secure) parts.add('Secure');
 
-  final existing = response.headers['set-cookie'];
-  final cookieValue = parts.join('; ');
-  final newHeaders =
-      existing != null
-          ? {'set-cookie': '$existing\n$cookieValue'}
-          : {'set-cookie': cookieValue};
-
-  return response.change(headers: newHeaders);
+  // Set-Cookie must be sent as separate header lines — shelf supports this
+  // via a list value in headersAll.
+  final existing = response.headersAll['set-cookie'] ?? const <String>[];
+  return response.change(
+    headers: {
+      'set-cookie': [...existing, parts.join('; ')],
+    },
+  );
 }

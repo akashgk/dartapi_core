@@ -9,10 +9,11 @@ void main() async {
         method: ApiMethod.get,
         path: '/hello',
         summary: 'Hello world',
-        typedHandler: (req, _) async => {
-          'message': 'Hello from dartapi_core!',
-          'docs': 'http://localhost:8080/docs',
-        },
+        typedHandler:
+            (req, _) async => {
+              'message': 'Hello from dartapi_core!',
+              'docs': 'http://localhost:8080/docs',
+            },
       ),
     ]),
   ]);

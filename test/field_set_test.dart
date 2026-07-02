@@ -163,6 +163,18 @@ void main() {
       expect(nameErrors.length, 1);
     });
 
+    test('wrong JSON type produces a field error instead of a cast error', () {
+      final e = _catchValidation(
+        () => fields.validate({
+          'name': 'Alice',
+          'email': 'a@b.com',
+          'age': 'not-a-number',
+        }),
+      );
+      final ageError = e.errors.firstWhere((e) => e['field'] == 'age');
+      expect(ageError['message'], contains('must be of type integer'));
+    });
+
     test('throws for missing required field with null value', () {
       final e = _catchValidation(
         () => fields.validate({'name': null, 'email': 'a@b.com'}),

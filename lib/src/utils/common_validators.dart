@@ -3,7 +3,9 @@ import 'validator.dart';
 /// Validates that a string matches a valid email format.
 class EmailValidator extends Validators<String> {
   EmailValidator([super.validationErrorMessage = 'Invalid email address']);
-  final _emailRegex = RegExp(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$');
+  final _emailRegex = RegExp(
+    r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
+  );
 
   @override
   bool validate(dynamic value) => _emailRegex.hasMatch(value as String);
@@ -55,7 +57,11 @@ class RangeValidator<T extends num> extends Validators<T> {
   final T? max;
 
   RangeValidator({this.min, this.max, String? message})
-    : super(message ?? _buildMessage(min, max));
+    : assert(
+        min != null || max != null,
+        'RangeValidator needs at least one of min or max',
+      ),
+      super(message ?? _buildMessage(min, max));
 
   static String _buildMessage(num? min, num? max) {
     if (min != null && max != null) return 'Must be between $min and $max';

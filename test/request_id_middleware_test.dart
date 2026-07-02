@@ -73,5 +73,19 @@ void main() {
       expect(res.headers['x-custom'], equals('value'));
       expect(res.headers['x-request-id'], isNotNull);
     });
+
+    test('preserves multiple Set-Cookie header values', () async {
+      final handler = requestIdMiddleware()(
+        (req) async => Response.ok(
+          'x',
+          headers: {
+            'set-cookie': ['a=1', 'b=2'],
+          },
+        ),
+      );
+      final res = await handler(Request('GET', Uri.parse('http://localhost/')));
+      expect(res.headersAll['set-cookie'], equals(['a=1', 'b=2']));
+      expect(res.headers['x-request-id'], isNotNull);
+    });
   });
 }

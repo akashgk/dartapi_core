@@ -7,9 +7,8 @@ void main() {
     Response ok(Request _) => Response.ok('ok');
     final req = Request('GET', Uri.parse('http://localhost/'));
 
-    Handler withDefaults() => Pipeline()
-        .addMiddleware(securityHeadersMiddleware())
-        .addHandler(ok);
+    Handler withDefaults() =>
+        Pipeline().addMiddleware(securityHeadersMiddleware()).addHandler(ok);
 
     test('adds X-Frame-Options: DENY', () async {
       final res = await withDefaults()(req);
@@ -56,15 +55,17 @@ void main() {
           )
           .addHandler(ok);
       final res = await handler(req);
-      expect(res.headers['content-security-policy'], equals("default-src 'self'"));
+      expect(
+        res.headers['content-security-policy'],
+        equals("default-src 'self'"),
+      );
     });
 
     test('adds HSTS when provided', () async {
       final handler = Pipeline()
           .addMiddleware(
             securityHeadersMiddleware(
-              strictTransportSecurity:
-                  'max-age=31536000; includeSubDomains',
+              strictTransportSecurity: 'max-age=31536000; includeSubDomains',
             ),
           )
           .addHandler(ok);
@@ -77,9 +78,7 @@ void main() {
 
     test('custom values override defaults', () async {
       final handler = Pipeline()
-          .addMiddleware(
-            securityHeadersMiddleware(xFrameOptions: 'SAMEORIGIN'),
-          )
+          .addMiddleware(securityHeadersMiddleware(xFrameOptions: 'SAMEORIGIN'))
           .addHandler(ok);
       final res = await handler(req);
       expect(res.headers['x-frame-options'], equals('SAMEORIGIN'));

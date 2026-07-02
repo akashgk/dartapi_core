@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 
@@ -65,8 +66,14 @@ class DartAPI {
   Duration? _rateLimitWindow;
   String Function(Request)? _rateLimitKeyExtractor;
   int? _bodySizeLimitMaxBytes;
-  bool _securityHeadersEnabled = false;
-  Map<String, dynamic> _securityHeadersOptions = const {};
+  Middleware? _securityHeaders;
+  LogFormat _logFormat = LogFormat.text;
+  List<String> _logExcludePaths = const [];
+
+  // ── Runtime state ──────────────────────────────────────────────────────────
+  HttpServer? _server;
+  final List<StreamSubscription<ProcessSignal>> _signalSubscriptions = [];
+  bool _stopped = false;
 
   DartAPI({this.corsOrigin = '*', this.appName = 'dartapi'});
 
@@ -190,18 +197,34 @@ class DartAPI {
     String? contentSecurityPolicy,
     String? strictTransportSecurity,
   }) {
-    _securityHeadersEnabled = true;
-    _securityHeadersOptions = {
-      'xFrameOptions': xFrameOptions,
-      'xContentTypeOptions': xContentTypeOptions,
-      'referrerPolicy': referrerPolicy,
-      'xXssProtection': xXssProtection,
-      'permissionsPolicy': permissionsPolicy,
-      if (contentSecurityPolicy != null)
-        'contentSecurityPolicy': contentSecurityPolicy,
-      if (strictTransportSecurity != null)
-        'strictTransportSecurity': strictTransportSecurity,
-    };
+    _securityHeaders = securityHeadersMiddleware(
+      xFrameOptions: xFrameOptions,
+      xContentTypeOptions: xContentTypeOptions,
+      referrerPolicy: referrerPolicy,
+      xXssProtection: xXssProtection,
+      permissionsPolicy: permissionsPolicy,
+      contentSecurityPolicy: contentSecurityPolicy,
+      strictTransportSecurity: strictTransportSecurity,
+    );
+  }
+
+  /// Configures the built-in request logging (always on).
+  ///
+  /// Use [format] to switch to structured JSON logs and [excludePaths] to
+  /// silence noisy endpoints:
+  ///
+  /// ```dart
+  /// app.configureLogging(
+  ///   format: LogFormat.json,
+  ///   excludePaths: ['/health', '/metrics'],
+  /// );
+  /// ```
+  void configureLogging({
+    LogFormat format = LogFormat.text,
+    List<String> excludePaths = const [],
+  }) {
+    _logFormat = format;
+    _logExcludePaths = excludePaths;
   }
 
   /// Registers `GET /metrics` in Prometheus text format and adds
@@ -272,15 +295,20 @@ class DartAPI {
 
   // ── Start ─────────────────────────────────────────────────────────────────
 
-  /// Binds the HTTP server on [port].
+  /// Binds the HTTP server on [address]:[port] (default `0.0.0.0:8080`).
   ///
   /// Set [shared] to `true` when multiple isolates run on the same port —
   /// the OS load-balances connections across all of them.
   ///
   /// Pipeline order (outermost first):
-  ///   requestId → globalException → rateLimit → timeout →
-  ///   backgroundTasks → logging → CORS → compression → metrics → router
-  Future<void> start({int port = 8080, bool shared = false}) async {
+  ///   requestId → globalException → rateLimit → timeout → backgroundTasks →
+  ///   bodySizeLimit → logging → CORS → compression → metrics →
+  ///   securityHeaders → router
+  Future<void> start({
+    int port = 8080,
+    Object address = '0.0.0.0',
+    bool shared = false,
+  }) async {
     for (final hook in _startupHooks) {
       await hook();
     }
@@ -322,7 +350,9 @@ class DartAPI {
     }
 
     pipeline = pipeline
-        .addMiddleware(loggingMiddleware())
+        .addMiddleware(
+          loggingMiddleware(format: _logFormat, excludePaths: _logExcludePaths),
+        )
         .addMiddleware(
           corsHeaders(
             headers: {
@@ -345,46 +375,46 @@ class DartAPI {
       pipeline = pipeline.addMiddleware(metricsMiddleware());
     }
 
-    if (_securityHeadersEnabled) {
-      final opts = _securityHeadersOptions;
-      pipeline = pipeline.addMiddleware(
-        securityHeadersMiddleware(
-          xFrameOptions: opts['xFrameOptions'] as String? ?? 'DENY',
-          xContentTypeOptions:
-              opts['xContentTypeOptions'] as String? ?? 'nosniff',
-          referrerPolicy: opts['referrerPolicy'] as String? ??
-              'strict-origin-when-cross-origin',
-          xXssProtection: opts['xXssProtection'] as String? ?? '1; mode=block',
-          permissionsPolicy: opts['permissionsPolicy'] as String? ??
-              'camera=(), microphone=(), geolocation=()',
-          contentSecurityPolicy: opts['contentSecurityPolicy'] as String?,
-          strictTransportSecurity:
-              opts['strictTransportSecurity'] as String?,
-        ),
-      );
+    if (_securityHeaders != null) {
+      pipeline = pipeline.addMiddleware(_securityHeaders!);
     }
 
     final handler = pipeline.addHandler(_router.handler.call);
-    final server = await io.serve(handler, '0.0.0.0', port, shared: shared);
+    _server = await io.serve(handler, address, port, shared: shared);
+    _stopped = false;
     log('[$appName] Server running on http://localhost:$port');
 
-    Future<void> shutdown() async {
-      log('[$appName] Shutting down...');
-      for (final hook in _shutdownHooks) {
-        await hook();
-      }
-      await server.close(force: true);
-    }
-
-    ProcessSignal.sigint.watch().listen((_) async {
-      await shutdown();
-      exit(0);
-    });
+    _signalSubscriptions.add(
+      ProcessSignal.sigint.watch().listen((_) => _shutdownAndExit()),
+    );
     if (!Platform.isWindows) {
-      ProcessSignal.sigterm.watch().listen((_) async {
-        await shutdown();
-        exit(0);
-      });
+      _signalSubscriptions.add(
+        ProcessSignal.sigterm.watch().listen((_) => _shutdownAndExit()),
+      );
     }
+  }
+
+  /// Stops the server: runs shutdown hooks, then closes the listener.
+  ///
+  /// Set [force] to `true` to abort in-flight requests instead of letting
+  /// them complete. Safe to call more than once.
+  Future<void> stop({bool force = false}) async {
+    if (_stopped) return;
+    _stopped = true;
+    log('[$appName] Shutting down...');
+    for (final sub in _signalSubscriptions) {
+      await sub.cancel();
+    }
+    _signalSubscriptions.clear();
+    for (final hook in _shutdownHooks) {
+      await hook();
+    }
+    await _server?.close(force: force);
+    _server = null;
+  }
+
+  Future<void> _shutdownAndExit() async {
+    await stop(force: true);
+    exit(0);
   }
 }

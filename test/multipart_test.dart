@@ -153,6 +153,22 @@ void main() {
     });
   });
 
+  group('MultipartExtensions quoted boundary', () {
+    test('parses boundary wrapped in double quotes', () async {
+      final body = _multipartBody([
+        {'name': 'title', 'value': 'Hello'},
+      ]);
+      final req = Request(
+        'POST',
+        Uri.parse('http://localhost/upload'),
+        body: body,
+        headers: {'content-type': 'multipart/form-data; boundary="$_boundary"'},
+      );
+      final fields = await req.formFields();
+      expect(fields, equals({'title': 'Hello'}));
+    });
+  });
+
   group('MultipartExtensions error handling', () {
     test('throws FormatException when boundary is missing', () async {
       final req = Request(

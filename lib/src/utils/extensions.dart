@@ -149,7 +149,17 @@ T _coerce<T>(String name, String value) {
     }
     return parsed as T;
   }
-  if (T == bool) return (value == 'true') as T;
+  if (T == bool) {
+    return switch (value.toLowerCase()) {
+      'true' || '1' => true as T,
+      'false' || '0' => false as T,
+      _ =>
+        throw ApiException(
+          400,
+          'Parameter "$name" must be a boolean, got "$value"',
+        ),
+    };
+  }
   throw ApiException(
     500,
     'Unsupported parameter type $T for "$name". Use String, int, double, or bool.',

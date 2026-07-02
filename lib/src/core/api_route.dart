@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:developer';
+
 import 'package:shelf/shelf.dart';
 import 'api_exception.dart';
 import 'api_methods.dart';
@@ -217,13 +219,17 @@ class ApiRoute<ApiInput, ApiOutput> {
 
       if (dtoParser != null) {
         final body = await request.readAsString();
-        dto = dtoParser?.call(jsonDecode(body));
+        final decoded = jsonDecode(body);
+        if (decoded is! Map<String, dynamic>) {
+          throw const FormatException('Request body must be a JSON object');
+        }
+        dto = dtoParser?.call(decoded);
       }
 
       final result = await typedHandler(request, dto);
 
       if (result == null) {
-        return Response(204);
+        return Response(204, headers: {if (deprecated) 'Deprecation': 'true'});
       }
 
       // Allow handlers to return a pre-built Response (e.g., SSE, file downloads).
@@ -255,12 +261,11 @@ class ApiRoute<ApiInput, ApiOutput> {
         body: _serialize({'error': e.message}),
         headers: {'Content-Type': 'application/json'},
       );
-    } catch (e) {
+    } catch (e, st) {
+      // Log the real error server-side, but never leak internals to the client.
+      log('Unhandled error in $path handler: $e', stackTrace: st);
       return Response.internalServerError(
-        body: _serialize({
-          'error': 'Internal Server Error',
-          'message': e.toString(),
-        }),
+        body: jsonEncode({'error': 'Internal Server Error'}),
         headers: {'Content-Type': 'application/json'},
       );
     }
@@ -269,12 +274,25 @@ class ApiRoute<ApiInput, ApiOutput> {
 
 /// Converts the result of the handler into a JSON-encoded response body.
 ///
-/// Supports strings, maps, lists, and classes implementing [Serializable].
+/// Supports strings, maps, lists, and classes implementing [Serializable] —
+/// including [Serializable] objects nested inside maps and lists.
 String _serialize(dynamic data) {
   if (data is String) return data;
-  if (data is bool || data is num) return jsonEncode(data);
-  if (data is Map || data is List) return jsonEncode(data);
   if (data is Serializable) return jsonEncode(data.toJson());
+  if (data is bool || data is num || data is Map || data is List) {
+    return jsonEncode(data, toEncodable: _encodeSerializable);
+  }
 
-  throw Exception("Unable to serialize response of type ${data.runtimeType}");
+  throw ArgumentError(
+    'Unable to serialize response of type ${data.runtimeType}. '
+    'Return a String, num, bool, Map, List, or a class implementing Serializable.',
+  );
+}
+
+Object? _encodeSerializable(Object? value) {
+  if (value is Serializable) return value.toJson();
+  throw ArgumentError(
+    'Unable to serialize value of type ${value.runtimeType} inside response. '
+    'Implement Serializable or return JSON-encodable values.',
+  );
 }

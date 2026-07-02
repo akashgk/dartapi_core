@@ -66,5 +66,13 @@ void main() {
       final res = setCookie(base, 'x', 'y', sameSite: 'Strict');
       expect(res.headers['set-cookie'], contains('SameSite=Strict'));
     });
+
+    test('setting two cookies produces two Set-Cookie header values', () {
+      final res = setCookie(setCookie(base, 'a', '1'), 'b', '2');
+      final all = res.headersAll['set-cookie'];
+      expect(all, hasLength(2));
+      expect(all![0], startsWith('a=1'));
+      expect(all[1], startsWith('b=2'));
+    });
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:test/test.dart';
 import 'package:shelf/shelf.dart';
 import 'package:dartapi_core/dartapi_core.dart';
@@ -38,6 +40,15 @@ void main() {
       expect(res.statusCode, equals(500));
       final body = await res.readAsString();
       expect(body, contains('Internal error'));
+    });
+
+    test('produces valid JSON when the message contains quotes', () async {
+      final handler = globalExceptionMiddleware(
+        onError: (e, _) => const ApiException(500, 'He said "boom" \\ done'),
+      )((_) async => throw Exception('x'));
+      final res = await handler(Request('GET', Uri.parse('http://localhost/')));
+      final body = jsonDecode(await res.readAsString()) as Map;
+      expect(body['error'], 'He said "boom" \\ done');
     });
 
     test('response has JSON content type', () async {

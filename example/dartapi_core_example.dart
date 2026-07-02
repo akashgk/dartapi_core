@@ -44,11 +44,11 @@ class Book implements Serializable {
 
   @override
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'author': author,
-        'year': year,
-      };
+    'id': id,
+    'title': title,
+    'author': author,
+    'year': year,
+  };
 
   static const schema = {
     'type': 'object',
@@ -80,11 +80,13 @@ class BookDTO {
   /// (no short-circuit — the caller sees every invalid field at once).
   factory BookDTO.fromJson(Map<String, dynamic> json) {
     json.validateAll({
-      'title': () => json.verifyKey<String>(
+      'title':
+          () => json.verifyKey<String>(
             'title',
             validators: [NotEmptyValidator(), MaxLengthValidator(200)],
           ),
-      'author': () => json.verifyKey<String>(
+      'author':
+          () => json.verifyKey<String>(
             'author',
             validators: [NotEmptyValidator()],
           ),
@@ -113,11 +115,31 @@ class BookDTO {
 
 class BookRepository {
   final List<Book> _books = [
-    const Book(id: 1, title: 'Clean Code', author: 'Robert C. Martin', year: 2008),
-    const Book(id: 2, title: 'The Pragmatic Programmer', author: 'David Thomas', year: 1999),
+    const Book(
+      id: 1,
+      title: 'Clean Code',
+      author: 'Robert C. Martin',
+      year: 2008,
+    ),
+    const Book(
+      id: 2,
+      title: 'The Pragmatic Programmer',
+      author: 'David Thomas',
+      year: 1999,
+    ),
     const Book(id: 3, title: 'Design Patterns', author: 'GoF', year: 1994),
-    const Book(id: 4, title: 'Refactoring', author: 'Martin Fowler', year: 1999),
-    const Book(id: 5, title: 'Domain-Driven Design', author: 'Eric Evans', year: 2003),
+    const Book(
+      id: 4,
+      title: 'Refactoring',
+      author: 'Martin Fowler',
+      year: 1999,
+    ),
+    const Book(
+      id: 5,
+      title: 'Domain-Driven Design',
+      author: 'Eric Evans',
+      year: 2003,
+    ),
   ];
   int _nextId = 6;
 
@@ -144,7 +166,12 @@ class BookRepository {
   Book? update(int id, BookDTO dto) {
     final idx = _books.indexWhere((b) => b.id == id);
     if (idx == -1) return null;
-    final updated = Book(id: id, title: dto.title, author: dto.author, year: dto.year);
+    final updated = Book(
+      id: id,
+      title: dto.title,
+      author: dto.author,
+      year: dto.year,
+    );
     _books[idx] = updated;
     return updated;
   }
@@ -163,8 +190,10 @@ class BookService {
   final BookRepository _repo;
   BookService(this._repo);
 
-  ({List<Book> books, int total}) list({required int page, required int limit}) =>
-      (books: _repo.getAll(page: page, limit: limit), total: _repo.total);
+  ({List<Book> books, int total}) list({
+    required int page,
+    required int limit,
+  }) => (books: _repo.getAll(page: page, limit: limit), total: _repo.total);
 
   Book get(int id) =>
       _repo.getById(id) ?? (throw const ApiException(404, 'Book not found'));
@@ -172,7 +201,8 @@ class BookService {
   Book create(BookDTO dto) => _repo.create(dto);
 
   Book update(int id, BookDTO dto) =>
-      _repo.update(id, dto) ?? (throw const ApiException(404, 'Book not found'));
+      _repo.update(id, dto) ??
+      (throw const ApiException(404, 'Book not found'));
 
   void delete(int id) {
     if (!_repo.delete(id)) throw const ApiException(404, 'Book not found');
@@ -186,117 +216,118 @@ class BookController extends BaseController {
   final JwtService _jwt;
 
   BookController({required BookService service, required JwtService jwt})
-      : _service = service,
-        _jwt = jwt;
+    : _service = service,
+      _jwt = jwt;
 
   @override
   List<ApiRoute> get routes => [
-        // ── GET /books — public, paginated, cached ───────────────────────────
-        ApiRoute<void, PaginatedResponse>(
-          method: ApiMethod.get,
-          path: '/books',
-          summary: 'List books',
-          description: 'Public paginated list. Supports `?page` and `?limit` (max 50). '
-              'Response cached for 30 seconds.',
-          cacheTtl: const Duration(seconds: 30),
-          responseSchema: {
+    // ── GET /books — public, paginated, cached ───────────────────────────
+    ApiRoute<void, PaginatedResponse>(
+      method: ApiMethod.get,
+      path: '/books',
+      summary: 'List books',
+      description:
+          'Public paginated list. Supports `?page` and `?limit` (max 50). '
+          'Response cached for 30 seconds.',
+      cacheTtl: const Duration(seconds: 30),
+      responseSchema: {
+        'type': 'object',
+        'properties': {
+          'data': {'type': 'array', 'items': Book.schema},
+          'meta': {
             'type': 'object',
             'properties': {
-              'data': {'type': 'array', 'items': Book.schema},
-              'meta': {
-                'type': 'object',
-                'properties': {
-                  'page': {'type': 'integer'},
-                  'limit': {'type': 'integer'},
-                  'total': {'type': 'integer'},
-                  'totalPages': {'type': 'integer'},
-                  'hasNext': {'type': 'boolean'},
-                  'hasPrev': {'type': 'boolean'},
-                },
-              },
+              'page': {'type': 'integer'},
+              'limit': {'type': 'integer'},
+              'total': {'type': 'integer'},
+              'totalPages': {'type': 'integer'},
+              'hasNext': {'type': 'boolean'},
+              'hasPrev': {'type': 'boolean'},
             },
           },
-          typedHandler: (req, _) async {
-            final p = Pagination.fromRequest(req, defaultLimit: 3, maxLimit: 50);
-            final (:books, :total) = _service.list(page: p.page, limit: p.limit);
-            return PaginatedResponse(data: books, pagination: p, total: total);
-          },
-        ),
+        },
+      },
+      typedHandler: (req, _) async {
+        final p = Pagination.fromRequest(req, defaultLimit: 3, maxLimit: 50);
+        final (:books, :total) = _service.list(page: p.page, limit: p.limit);
+        return PaginatedResponse(data: books, pagination: p, total: total);
+      },
+    ),
 
-        // ── GET /books/:id — requires auth ───────────────────────────────────
-        ApiRoute<void, Book>(
-          method: ApiMethod.get,
-          path: '/books/<id>',
-          summary: 'Get book',
-          description: 'Returns a single book by ID. Requires a valid Bearer token.',
-          middlewares: [authMiddleware(_jwt)],
-          security: [SecurityScheme.bearer],
-          responseSchema: Book.schema,
-          typedHandler: (req, _) async => _service.get(req.pathParam<int>('id')),
-        ),
+    // ── GET /books/:id — requires auth ───────────────────────────────────
+    ApiRoute<void, Book>(
+      method: ApiMethod.get,
+      path: '/books/<id>',
+      summary: 'Get book',
+      description:
+          'Returns a single book by ID. Requires a valid Bearer token.',
+      middlewares: [authMiddleware(_jwt)],
+      security: [SecurityScheme.bearer],
+      responseSchema: Book.schema,
+      typedHandler: (req, _) async => _service.get(req.pathParam<int>('id')),
+    ),
 
-        // ── POST /books — requires auth, fires background task ───────────────
-        ApiRoute<BookDTO, Book>(
-          method: ApiMethod.post,
-          path: '/books',
-          statusCode: 201,
-          summary: 'Create book',
-          description: 'Creates a new book. Requires auth. '
-              'A background task fires after the response is sent '
-              '(simulates an audit log entry).',
-          dtoParser: BookDTO.fromJson,
-          requestSchema: BookDTO.schema,
-          responseSchema: Book.schema,
-          middlewares: [authMiddleware(_jwt)],
-          security: [SecurityScheme.bearer],
-          typedHandler: (req, dto) async {
-            final book = _service.create(dto!);
-            req.backgroundTasks.add(() async {
-              // Runs after the 201 response is delivered to the client.
-              print('[audit] Book created: id=${book.id} "${book.title}"');
-            });
-            return book;
-          },
-        ),
+    // ── POST /books — requires auth, fires background task ───────────────
+    ApiRoute<BookDTO, Book>(
+      method: ApiMethod.post,
+      path: '/books',
+      statusCode: 201,
+      summary: 'Create book',
+      description:
+          'Creates a new book. Requires auth. '
+          'A background task fires after the response is sent '
+          '(simulates an audit log entry).',
+      dtoParser: BookDTO.fromJson,
+      requestSchema: BookDTO.schema,
+      responseSchema: Book.schema,
+      middlewares: [authMiddleware(_jwt)],
+      security: [SecurityScheme.bearer],
+      typedHandler: (req, dto) async {
+        final book = _service.create(dto!);
+        req.backgroundTasks.add(() async {
+          // Runs after the 201 response is delivered to the client.
+          print('[audit] Book created: id=${book.id} "${book.title}"');
+        });
+        return book;
+      },
+    ),
 
-        // ── PUT /books/:id — requires auth ───────────────────────────────────
-        ApiRoute<BookDTO, Book>(
-          method: ApiMethod.put,
-          path: '/books/<id>',
-          summary: 'Update book',
-          description: 'Replaces all fields of an existing book.',
-          dtoParser: BookDTO.fromJson,
-          requestSchema: BookDTO.schema,
-          responseSchema: Book.schema,
-          middlewares: [authMiddleware(_jwt)],
-          security: [SecurityScheme.bearer],
-          typedHandler: (req, dto) async =>
-              _service.update(req.pathParam<int>('id'), dto!),
-        ),
+    // ── PUT /books/:id — requires auth ───────────────────────────────────
+    ApiRoute<BookDTO, Book>(
+      method: ApiMethod.put,
+      path: '/books/<id>',
+      summary: 'Update book',
+      description: 'Replaces all fields of an existing book.',
+      dtoParser: BookDTO.fromJson,
+      requestSchema: BookDTO.schema,
+      responseSchema: Book.schema,
+      middlewares: [authMiddleware(_jwt)],
+      security: [SecurityScheme.bearer],
+      typedHandler:
+          (req, dto) async => _service.update(req.pathParam<int>('id'), dto!),
+    ),
 
-        // ── DELETE /books/:id — requires auth ────────────────────────────────
-        ApiRoute<void, void>(
-          method: ApiMethod.delete,
-          path: '/books/<id>',
-          statusCode: 204,
-          summary: 'Delete book',
-          description: 'Permanently removes a book. Returns 204 on success.',
-          middlewares: [authMiddleware(_jwt)],
-          security: [SecurityScheme.bearer],
-          typedHandler: (req, _) async => _service.delete(req.pathParam<int>('id')),
-        ),
-      ];
+    // ── DELETE /books/:id — requires auth ────────────────────────────────
+    ApiRoute<void, void>(
+      method: ApiMethod.delete,
+      path: '/books/<id>',
+      statusCode: 204,
+      summary: 'Delete book',
+      description: 'Permanently removes a book. Returns 204 on success.',
+      middlewares: [authMiddleware(_jwt)],
+      security: [SecurityScheme.bearer],
+      typedHandler: (req, _) async => _service.delete(req.pathParam<int>('id')),
+    ),
+  ];
 }
 
 // ── Minimal hardcoded user store (replace with a real DB in production) ───────
 
-const _demoCredentials = {
-  'email': 'demo@example.com',
-  'password': 'demo1234',
-};
+const _demoCredentials = {'email': 'demo@example.com', 'password': 'demo1234'};
 
 Map<String, dynamic>? _authenticate(String email, String password) {
-  if (email == _demoCredentials['email'] && password == _demoCredentials['password']) {
+  if (email == _demoCredentials['email'] &&
+      password == _demoCredentials['password']) {
     return {'sub': '1', 'email': email, 'role': 'user'};
   }
   return null;
@@ -306,10 +337,7 @@ Map<String, dynamic>? _authenticate(String email, String password) {
 
 Future<void> main() async {
   // Load .env files — gracefully ignored when files don't exist.
-  final env = mergeEnv([
-    loadEnvFile('env/.env'),
-    loadEnvFile('env/.env.dev'),
-  ]);
+  final env = mergeEnv([loadEnvFile('env/.env'), loadEnvFile('env/.env.dev')]);
   final config = AppConfig(environment: env);
 
   final app = DartAPI(appName: 'books-api', corsOrigin: config.corsOrigin);
@@ -321,9 +349,7 @@ Future<void> main() async {
 
   app.register<BookRepository>((_) => BookRepository());
 
-  app.register<BookService>(
-    (r) => BookService(r.get<BookRepository>()),
-  );
+  app.register<BookService>((r) => BookService(r.get<BookRepository>()));
 
   app.register<InMemoryTokenStore>((_) => InMemoryTokenStore());
 
@@ -353,14 +379,19 @@ Future<void> main() async {
         method: ApiMethod.post,
         path: '/auth/login',
         summary: 'Login',
-        description: 'Returns an access + refresh token pair.\n\n'
+        description:
+            'Returns an access + refresh token pair.\n\n'
             'Demo credentials: `demo@example.com` / `demo1234`',
         dtoParser: (json) => json,
         requestSchema: {
           'type': 'object',
           'required': ['email', 'password'],
           'properties': {
-            'email': {'type': 'string', 'format': 'email', 'example': 'demo@example.com'},
+            'email': {
+              'type': 'string',
+              'format': 'email',
+              'example': 'demo@example.com',
+            },
             'password': {'type': 'string', 'example': 'demo1234'},
           },
         },
@@ -368,7 +399,9 @@ Future<void> main() async {
           final email = body?['email']?.toString() ?? '';
           final password = body?['password']?.toString() ?? '';
           final claims = _authenticate(email, password);
-          if (claims == null) throw const ApiException(401, 'Invalid credentials');
+          if (claims == null) {
+            throw const ApiException(401, 'Invalid credentials');
+          }
           final accessToken = jwt.generateAccessToken(claims: claims);
           return {
             'accessToken': accessToken,
@@ -393,13 +426,16 @@ Future<void> main() async {
         },
         typedHandler: (req, body) async {
           final token = body?['refreshToken']?.toString();
-          if (token == null) throw const ApiException(400, 'refreshToken is required');
+          if (token == null) {
+            throw const ApiException(400, 'refreshToken is required');
+          }
           final claims = await jwt.verifyRefreshToken(token);
-          if (claims == null) throw const ApiException(401, 'Invalid or expired refresh token');
-          final newAccess = jwt.generateAccessToken(claims: {
-            'sub': claims['sub'],
-            'email': claims['email'] ?? '',
-          });
+          if (claims == null) {
+            throw const ApiException(401, 'Invalid or expired refresh token');
+          }
+          final newAccess = jwt.generateAccessToken(
+            claims: {'sub': claims['sub'], 'email': claims['email'] ?? ''},
+          );
           return {'accessToken': newAccess};
         },
       ),
@@ -421,16 +457,16 @@ Future<void> main() async {
     ]),
 
     // ── Book CRUD ─────────────────────────────────────────────────────────
-    BookController(
-      service: app.get<BookService>(),
-      jwt: jwt,
-    ),
+    BookController(service: app.get<BookService>(), jwt: jwt),
   ]);
 
   // ── Built-in endpoints ────────────────────────────────────────────────────
-  app.enableHealthCheck();                                // GET /health
-  app.enableMetrics();                                    // GET /metrics (Prometheus)
-  app.enableDocs(title: 'Books API', version: '1.0.0');  // GET /docs (Swagger UI)
+  app.enableHealthCheck(); // GET /health
+  app.enableMetrics(); // GET /metrics (Prometheus)
+  app.enableDocs(
+    title: 'Books API',
+    version: '1.0.0',
+  ); // GET /docs (Swagger UI)
 
   final port = int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
 

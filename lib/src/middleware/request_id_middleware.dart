@@ -30,12 +30,9 @@ Middleware requestIdMiddleware({
 
       final response = await inner(updatedRequest);
 
-      return response.change(
-        headers: {
-          ...response.headersAll.map((k, v) => MapEntry(k, v.join(','))),
-          headerName: id,
-        },
-      );
+      // change() merges with existing headers, preserving multi-value
+      // headers such as Set-Cookie.
+      return response.change(headers: {headerName: id});
     };
   };
 }

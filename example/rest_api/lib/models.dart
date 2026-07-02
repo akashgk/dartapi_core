@@ -15,9 +15,9 @@ class Book implements Serializable {
 
   @override
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'author': author,
-        'year': year,
-      };
+    'id': id,
+    'title': title,
+    'author': author,
+    'year': year,
+  };
 }

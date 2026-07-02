@@ -34,10 +34,19 @@ Middleware compressionMiddleware({int threshold = 1024}) {
 
       final compressed = gzip.encode(bytes);
 
+      final existingVary = response.headers['vary'];
+      final vary =
+          (existingVary == null || existingVary.isEmpty)
+              ? 'Accept-Encoding'
+              : existingVary.toLowerCase().contains('accept-encoding')
+              ? existingVary
+              : '$existingVary, Accept-Encoding';
+
       final headers =
           Map<String, String>.from(response.headers)
             ..['content-encoding'] = 'gzip'
-            ..['content-length'] = compressed.length.toString();
+            ..['content-length'] = compressed.length.toString()
+            ..['vary'] = vary;
 
       return response.change(body: compressed, headers: headers);
     };

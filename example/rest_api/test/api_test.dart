@@ -7,11 +7,11 @@ import 'package:rest_api/repository.dart';
 import 'package:test/test.dart';
 
 JwtService _makeJwt() => JwtService(
-      accessTokenSecret: 'test-secret',
-      refreshTokenSecret: 'test-secret-refresh',
-      issuer: 'test',
-      audience: 'test-users',
-    );
+  accessTokenSecret: 'test-secret',
+  refreshTokenSecret: 'test-secret-refresh',
+  issuer: 'test',
+  audience: 'test-users',
+);
 
 DartApiTestClient _buildClient(JwtService jwt) {
   final router = RouterManager();
@@ -63,7 +63,11 @@ void main() {
     test('creates a book and returns 201', () async {
       final res = await client.post(
         '/books',
-        body: jsonEncode({'title': 'New Book', 'author': 'Author', 'year': 2024}),
+        body: jsonEncode({
+          'title': 'New Book',
+          'author': 'Author',
+          'year': 2024,
+        }),
         headers: {'authorization': 'Bearer $token'},
       );
       expect(res.statusCode, 201);
@@ -72,12 +76,12 @@ void main() {
       expect(body['id'], isNotNull);
     });
 
-    test('returns 403 without auth', () async {
+    test('returns 401 without auth', () async {
       final res = await client.post(
         '/books',
         body: jsonEncode({'title': 'X', 'author': 'Y', 'year': 2020}),
       );
-      expect(res.statusCode, 403);
+      expect(res.statusCode, 401);
     });
 
     test('returns 422 for invalid DTO (empty title)', () async {
@@ -94,7 +98,11 @@ void main() {
     test('updates a book', () async {
       final res = await client.put(
         '/books/1',
-        body: jsonEncode({'title': 'Updated', 'author': 'Author', 'year': 2020}),
+        body: jsonEncode({
+          'title': 'Updated',
+          'author': 'Author',
+          'year': 2020,
+        }),
         headers: {'authorization': 'Bearer $token'},
       );
       expect(res.statusCode, 200);

@@ -85,7 +85,10 @@ Middleware cacheMiddleware({
 
       final response = await inner(request);
 
-      if (response.statusCode == 200) {
+      // Never cache responses that set cookies — serving one client's
+      // Set-Cookie to another would leak session state.
+      if (response.statusCode == 200 &&
+          !response.headersAll.containsKey('set-cookie')) {
         final bodyBytes = await response.read().expand((b) => b).toList();
         final entry = _CachedResponse(
           statusCode: response.statusCode,

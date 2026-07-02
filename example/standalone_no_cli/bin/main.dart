@@ -12,17 +12,15 @@ Future<void> main() async {
   // Enable only what you need. Each call registers a Shelf middleware into
   // the pipeline that wraps every request before it reaches a controller.
 
-  app.enableCompression();   // gzip responses > 1 KB
-  app.enableHealthCheck();   // GET /health → {"status":"ok","uptime":"..."}
+  app.enableCompression(); // gzip responses > 1 KB
+  app.enableHealthCheck(); // GET /health → {"status":"ok","uptime":"..."}
 
   // ── Controllers ───────────────────────────────────────────────────────────
   //
   // addControllers() registers each controller's routes with the router.
   // Order matters for path matching — more specific paths first.
 
-  app.addControllers([
-    HelloController(),
-  ]);
+  app.addControllers([HelloController()]);
 
   // ── Docs ──────────────────────────────────────────────────────────────────
   //
