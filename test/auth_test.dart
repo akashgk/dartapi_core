@@ -178,34 +178,64 @@ void main() {
       });
     });
 
-    group('refresh token generation', () {
-      test('returns a non-empty JWT string', () {
-        final access = svc.generateAccessToken(claims: {'sub': 'u1'});
-        final refresh = svc.generateRefreshToken(accessToken: access);
-        expect(refresh, isNotEmpty);
+    group('token pair generation', () {
+      test('returns non-empty access and refresh JWTs', () {
+        final pair = svc.generateTokenPair(claims: {'sub': 'u1'});
+        expect(pair.accessToken, isNotEmpty);
+        expect(pair.refreshToken, isNotEmpty);
+        expect(pair.accessToken.split('.').length, 3);
+        expect(pair.refreshToken.split('.').length, 3);
       });
 
-      test('payload type is refresh', () async {
-        final access = svc.generateAccessToken(claims: {'sub': 'u1'});
-        final refresh = svc.generateRefreshToken(accessToken: access);
-        final payload = await svc.verifyRefreshToken(refresh);
-        expect(payload!['type'], 'refresh');
-        expect(payload['sub'], 'u1');
-      });
-
-      test('throws on invalid access token input', () {
-        expect(
-          () => svc.generateRefreshToken(accessToken: 'bad.token.here'),
-          throwsException,
+      test('both tokens carry the claims with correct types', () async {
+        final pair = svc.generateTokenPair(
+          claims: {'sub': 'u1', 'role': 'admin'},
         );
+        final ap = await svc.verifyAccessToken(pair.accessToken);
+        final rp = await svc.verifyRefreshToken(pair.refreshToken);
+        expect(ap!['type'], 'access');
+        expect(rp!['type'], 'refresh');
+        expect(ap['sub'], 'u1');
+        expect(rp['sub'], 'u1');
+        expect(rp['role'], 'admin');
       });
 
       test('refresh JTI differs from access JTI', () async {
-        final access = svc.generateAccessToken(claims: {'sub': 'u1'});
-        final refresh = svc.generateRefreshToken(accessToken: access);
-        final ap = await svc.verifyAccessToken(access);
-        final rp = await svc.verifyRefreshToken(refresh);
+        final pair = svc.generateTokenPair(claims: {'sub': 'u1'});
+        final ap = await svc.verifyAccessToken(pair.accessToken);
+        final rp = await svc.verifyRefreshToken(pair.refreshToken);
         expect(ap!['jti'], isNot(equals(rp!['jti'])));
+      });
+
+      test('caller claims cannot override protected standard claims', () async {
+        final token = svc.generateAccessToken(
+          claims: {'sub': 'u1', 'type': 'refresh', 'iss': 'evil'},
+        );
+        final payload = await svc.verifyAccessToken(token);
+        expect(payload!['type'], 'access');
+        expect(payload['iss'], _issuer);
+      });
+    });
+
+    group('deprecated generateRefreshToken', () {
+      test(
+        'still derives a usable refresh token from an access token',
+        () async {
+          final access = svc.generateAccessToken(claims: {'sub': 'u1'});
+          // ignore: deprecated_member_use_from_same_package
+          final refresh = svc.generateRefreshToken(accessToken: access);
+          final payload = await svc.verifyRefreshToken(refresh);
+          expect(payload!['type'], 'refresh');
+          expect(payload['sub'], 'u1');
+        },
+      );
+
+      test('throws on invalid access token input', () {
+        expect(
+          // ignore: deprecated_member_use_from_same_package
+          () => svc.generateRefreshToken(accessToken: 'bad.token.here'),
+          throwsArgumentError,
+        );
       });
     });
 
@@ -304,8 +334,8 @@ void main() {
       });
 
       test('refresh token cannot be used as access token', () async {
-        final access = svc.generateAccessToken(claims: {'sub': 'u1'});
-        final refresh = svc.generateRefreshToken(accessToken: access);
+        final refresh =
+            svc.generateTokenPair(claims: {'sub': 'u1'}).refreshToken;
         expect(await svc.verifyAccessToken(refresh), isNull);
       });
 
@@ -350,28 +380,46 @@ void main() {
       });
 
       test('revoked refresh token returns null', () async {
-        final access = svcWithStore.generateAccessToken(claims: {'sub': 'u1'});
-        final refresh = svcWithStore.generateRefreshToken(accessToken: access);
+        final refresh =
+            svcWithStore.generateTokenPair(claims: {'sub': 'u1'}).refreshToken;
         await svcWithStore.revokeToken(refresh);
         expect(await svcWithStore.verifyRefreshToken(refresh), isNull);
       });
 
-      test('revokeToken is a no-op when no tokenStore configured', () async {
+      test('revokeToken returns true for a valid token', () async {
+        final token = svcWithStore.generateAccessToken(claims: {'sub': 'u1'});
+        expect(await svcWithStore.revokeToken(token), isTrue);
+      });
+
+      test('revokeToken returns false when no tokenStore configured', () async {
         final noStore = _hs256();
         final token = noStore.generateAccessToken(claims: {'sub': 'u1'});
-        await noStore.revokeToken(token);
+        expect(await noStore.revokeToken(token), isFalse);
         expect(await noStore.verifyAccessToken(token), isNotNull);
       });
 
-      test('revokeToken is silent on malformed token', () async {
-        await expectLater(
-          svcWithStore.revokeToken('not.a.valid.jwt.at.all'),
-          completes,
+      test('revokeToken returns false on malformed token', () async {
+        expect(
+          await svcWithStore.revokeToken('not.a.valid.jwt.at.all'),
+          isFalse,
         );
+        expect(await svcWithStore.revokeToken('a.b'), isFalse);
       });
 
-      test('revokeToken is silent on two-part token', () async {
-        await expectLater(svcWithStore.revokeToken('a.b'), completes);
+      test('forged token cannot revoke another user\'s session', () async {
+        // A real, valid token for user u1…
+        final victim = svcWithStore.generateAccessToken(claims: {'sub': 'u1'});
+        final victimPayload = await svcWithStore.verifyAccessToken(victim);
+
+        // …and an attacker-forged token (wrong key) carrying the victim's
+        // exact payload, including the jti.
+        final forged = JWT(
+          Map<String, dynamic>.from(victimPayload!),
+        ).sign(SecretKey('attacker-controlled-secret'));
+
+        expect(await svcWithStore.revokeToken(forged), isFalse);
+        // Victim's session must remain valid.
+        expect(await svcWithStore.verifyAccessToken(victim), isNotNull);
       });
     });
 
@@ -381,8 +429,8 @@ void main() {
         () async {
           final store = InMemoryTokenStore();
           final svc = _hs256(store: store);
-          final access = svc.generateAccessToken(claims: {'sub': 'u1'});
-          final refresh = svc.generateRefreshToken(accessToken: access);
+          final refresh =
+              svc.generateTokenPair(claims: {'sub': 'u1'}).refreshToken;
 
           expect(await svc.verifyRefreshToken(refresh), isNotNull);
           expect(await svc.verifyRefreshToken(refresh), isNull); // rotated
@@ -391,11 +439,92 @@ void main() {
 
       test('without tokenStore refresh token can be reused', () async {
         final svc = _hs256();
-        final access = svc.generateAccessToken(claims: {'sub': 'u1'});
-        final refresh = svc.generateRefreshToken(accessToken: access);
+        final refresh =
+            svc.generateTokenPair(claims: {'sub': 'u1'}).refreshToken;
 
         expect(await svc.verifyRefreshToken(refresh), isNotNull);
         expect(await svc.verifyRefreshToken(refresh), isNotNull);
+      });
+
+      test(
+        'concurrent uses of one refresh token — exactly one succeeds',
+        () async {
+          final svc = _hs256(store: InMemoryTokenStore());
+          final refresh =
+              svc.generateTokenPair(claims: {'sub': 'u1'}).refreshToken;
+
+          final results = await Future.wait([
+            svc.verifyRefreshToken(refresh),
+            svc.verifyRefreshToken(refresh),
+            svc.verifyRefreshToken(refresh),
+          ]);
+
+          expect(results.where((r) => r != null).length, 1);
+        },
+      );
+
+      test('reuse of a rotated token fires onRefreshTokenReuse', () async {
+        Map<String, dynamic>? reusedPayload;
+        final store = InMemoryTokenStore();
+        final svc = JwtService(
+          accessTokenSecret: _accessSecret,
+          refreshTokenSecret: _refreshSecret,
+          issuer: _issuer,
+          audience: _audience,
+          tokenStore: store,
+          onRefreshTokenReuse: (payload) async => reusedPayload = payload,
+        );
+        final refresh =
+            svc.generateTokenPair(claims: {'sub': 'u1'}).refreshToken;
+
+        await svc.verifyRefreshToken(refresh); // legitimate rotation
+        expect(reusedPayload, isNull);
+
+        expect(await svc.verifyRefreshToken(refresh), isNull); // reuse
+        expect(reusedPayload, isNotNull);
+        expect(reusedPayload!['sub'], 'u1');
+      });
+    });
+
+    group('InMemoryTokenStore', () {
+      test('revokeIfActive is single-use', () async {
+        final store = InMemoryTokenStore();
+        expect(await store.revokeIfActive('jti-1'), isTrue);
+        expect(await store.revokeIfActive('jti-1'), isFalse);
+        expect(await store.isRevoked('jti-1'), isTrue);
+      });
+
+      test('entries expire after their ttl', () async {
+        final store = InMemoryTokenStore();
+        await store.revoke('jti-1', ttl: const Duration(milliseconds: 20));
+        expect(await store.isRevoked('jti-1'), isTrue);
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+        expect(await store.isRevoked('jti-1'), isFalse);
+      });
+
+      test('entries without ttl are kept', () async {
+        final store = InMemoryTokenStore();
+        await store.revoke('jti-1');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(await store.isRevoked('jti-1'), isTrue);
+      });
+
+      test('revocation entries carry the token ttl end-to-end', () async {
+        // A service with a very short refresh expiry: after revocation the
+        // store entry may be dropped once the token itself has expired.
+        final store = InMemoryTokenStore();
+        final svc = JwtService(
+          accessTokenSecret: _accessSecret,
+          refreshTokenSecret: _refreshSecret,
+          issuer: _issuer,
+          audience: _audience,
+          tokenStore: store,
+        );
+        final token = svc.generateAccessToken(claims: {'sub': 'u1'});
+        expect(await svc.revokeToken(token), isTrue);
+        // Entry present immediately (ttl = remaining exp + grace).
+        final payload = JWT.decode(token).payload as Map<String, dynamic>;
+        expect(await store.isRevoked(payload['jti'] as String), isTrue);
       });
     });
 
