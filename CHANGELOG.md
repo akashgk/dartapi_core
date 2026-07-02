@@ -1,3 +1,24 @@
+## 0.4.0
+
+**Production runtime hardening: graceful shutdown, TLS, proxy-safe rate limiting, API versioning, static files.**
+
+### Breaking changes
+
+- **Rate limiter no longer trusts `X-Forwarded-For` by default.** Previously the default key extractor read `X-Forwarded-For`/`X-Real-IP` unconditionally — a client could rotate fake header values to dodge the limiter, and all direct clients (no header) shared one `'unknown'` bucket, letting a single abuser throttle everyone. The default key is now the real socket IP. Behind a reverse proxy or load balancer, pass `trustProxy: true` to `enableRateLimit` / `rateLimitMiddleware` to key by the first `X-Forwarded-For` entry.
+- **SIGINT/SIGTERM now drain instead of abort.** Signal-triggered shutdown previously called `stop(force: true)`, killing in-flight requests — the opposite of what a rolling deploy needs. Signals now trigger a graceful drain bounded by the new `DartAPI(shutdownGracePeriod: ...)` (default 30 s).
+- **Shutdown hooks now run *after* the drain**, so a hook that closes the database can no longer break requests still completing. Previously hooks ran before the listener closed.
+- **Removed deprecated `JwtService.generateRefreshToken(accessToken: ...)`** as announced in 0.3.0 — use `generateTokenPair` instead.
+
+### New features
+
+- **Graceful shutdown**: `stop()` stops accepting connections, waits until every in-flight response is fully written (dart:io's `close(force: false)` does not), then force-closes stragglers after `shutdownGracePeriod`.
+- **TLS**: `app.start(securityContext: SecurityContext()..useCertificateChain(...)..usePrivateKey(...))` serves HTTPS natively.
+- **API versioning / route prefixes**: `app.addControllers([...], prefix: '/api/v1')` prefixes every HTTP and WebSocket route and is reflected in the OpenAPI spec.
+- **Static file serving**: `app.serveStatic('/public', 'web')` (built on `shelf_static`), with `defaultDocument` and `listDirectories` options.
+- **`clientIp(request, trustProxy: ...)`** exported helper — spoof-safe client IP resolution for logging, custom rate-limit keys, and audit trails.
+- **`app.port`** — the bound port, or `null` when not running. Combine with `start(port: 0)` to bind an ephemeral port in tests.
+- `InlineController` now accepts an optional `tag:` for OpenAPI grouping, mirroring `BaseController.tag`.
+
 ## 0.3.0
 
 **Secure token revocation and refresh rotation.**

@@ -4,6 +4,9 @@ import 'package:dartapi_core/dartapi_core.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
+// These tests fake client IPs via X-Forwarded-For, so the limiter is built
+// with trustProxy: true. The untrusted default (socket IP, spoof-proof) is
+// covered in production_hardening_test.dart.
 Handler _makeHandler({
   int maxRequests = 3,
   Duration window = const Duration(minutes: 1),
@@ -12,6 +15,7 @@ Handler _makeHandler({
   maxRequests: maxRequests,
   window: window,
   keyExtractor: keyExtractor,
+  trustProxy: true,
 )((req) => Response.ok('ok'));
 
 Request _req({String ip = '1.2.3.4'}) => Request(

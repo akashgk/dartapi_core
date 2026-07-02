@@ -217,28 +217,6 @@ void main() {
       });
     });
 
-    group('deprecated generateRefreshToken', () {
-      test(
-        'still derives a usable refresh token from an access token',
-        () async {
-          final access = svc.generateAccessToken(claims: {'sub': 'u1'});
-          // ignore: deprecated_member_use_from_same_package
-          final refresh = svc.generateRefreshToken(accessToken: access);
-          final payload = await svc.verifyRefreshToken(refresh);
-          expect(payload!['type'], 'refresh');
-          expect(payload['sub'], 'u1');
-        },
-      );
-
-      test('throws on invalid access token input', () {
-        expect(
-          // ignore: deprecated_member_use_from_same_package
-          () => svc.generateRefreshToken(accessToken: 'bad.token.here'),
-          throwsArgumentError,
-        );
-      });
-    });
-
     group('access token verification', () {
       test('valid token returns payload', () async {
         final token = svc.generateAccessToken(claims: {'sub': 'u1'});
@@ -576,9 +554,8 @@ void main() {
     });
 
     test('generates refresh token verifiable with public key', () async {
-      final access = rs256.generateAccessToken(claims: {'sub': 'u1'});
-      final refresh = rs256.generateRefreshToken(accessToken: access);
-      final payload = await rs256.verifyRefreshToken(refresh);
+      final pair = rs256.generateTokenPair(claims: {'sub': 'u1'});
+      final payload = await rs256.verifyRefreshToken(pair.refreshToken);
       expect(payload, isNotNull);
       expect(payload!['type'], 'refresh');
     });

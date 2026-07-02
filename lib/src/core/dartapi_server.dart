@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
+import 'package:shelf_static/shelf_static.dart';
 
 import 'api_exception.dart';
 import 'background_task.dart';
@@ -53,6 +54,13 @@ class DartAPI {
   /// Application name used in log messages.
   final String appName;
 
+  /// How long [stop] waits for in-flight requests to complete before
+  /// force-closing their connections. Defaults to 30 seconds.
+  ///
+  /// SIGINT/SIGTERM trigger a graceful drain bounded by this period, so a
+  /// rolling deploy (e.g. Kubernetes) never kills requests mid-flight.
+  final Duration shutdownGracePeriod;
+
   final List<Future<void> Function()> _startupHooks = [];
   final List<Future<void> Function()> _shutdownHooks = [];
 
@@ -65,17 +73,28 @@ class DartAPI {
   int? _rateLimitMaxRequests;
   Duration? _rateLimitWindow;
   String Function(Request)? _rateLimitKeyExtractor;
+  bool _rateLimitTrustProxy = false;
   int? _bodySizeLimitMaxBytes;
   Middleware? _securityHeaders;
   LogFormat _logFormat = LogFormat.text;
   List<String> _logExcludePaths = const [];
 
   // ── Runtime state ──────────────────────────────────────────────────────────
+
+  /// The port the server is bound to, or `null` when not running.
+  ///
+  /// Useful with `start(port: 0)`, which binds an ephemeral port.
+  int? get port => _server?.port;
+
   HttpServer? _server;
   final List<StreamSubscription<ProcessSignal>> _signalSubscriptions = [];
   bool _stopped = false;
 
-  DartAPI({this.corsOrigin = '*', this.appName = 'dartapi'});
+  DartAPI({
+    this.corsOrigin = '*',
+    this.appName = 'dartapi',
+    this.shutdownGracePeriod = const Duration(seconds: 30),
+  });
 
   // ── Service registry (DI) ─────────────────────────────────────────────────
 
@@ -155,14 +174,21 @@ class DartAPI {
   ///
   /// Clients exceeding [maxRequests] within [window] receive `429 Too Many
   /// Requests` with `Retry-After` and `X-RateLimit-*` headers.
+  ///
+  /// The key is the IP of the TCP connection. Behind a reverse proxy or load
+  /// balancer set [trustProxy] to `true` so the first `X-Forwarded-For`
+  /// entry is used instead — otherwise every client shares the proxy's IP.
+  /// Never enable it on a directly exposed server (the header is spoofable).
   void enableRateLimit({
     required int maxRequests,
     required Duration window,
     String Function(Request)? keyExtractor,
+    bool trustProxy = false,
   }) {
     _rateLimitMaxRequests = maxRequests;
     _rateLimitWindow = window;
     _rateLimitKeyExtractor = keyExtractor;
+    _rateLimitTrustProxy = trustProxy;
   }
 
   /// Rejects requests whose `Content-Length` exceeds [maxBytes] with
@@ -287,10 +313,45 @@ class DartAPI {
 
   // ── Controllers ───────────────────────────────────────────────────────────
 
-  void addControllers(List<BaseController> controllers) {
+  /// Registers the routes of every controller in [controllers].
+  ///
+  /// Pass [prefix] to mount all of them under a common base path — the
+  /// standard way to version an API:
+  ///
+  /// ```dart
+  /// app.addControllers([UserController()], prefix: '/api/v1');
+  /// // GET /users  →  GET /api/v1/users (also reflected in /openapi.json)
+  /// ```
+  void addControllers(List<BaseController> controllers, {String prefix = ''}) {
     for (final controller in controllers) {
-      _router.registerController(controller);
+      _router.registerController(controller, prefix: prefix);
     }
+  }
+
+  /// Serves files from [directory] under [urlPrefix].
+  ///
+  /// ```dart
+  /// app.serveStatic('/public', 'web');
+  /// // GET /public/logo.png → web/logo.png
+  /// ```
+  ///
+  /// [defaultDocument] (e.g. `'index.html'`) is served for directory
+  /// requests. Set [listDirectories] to `true` to render a directory
+  /// listing when no default document exists.
+  void serveStatic(
+    String urlPrefix,
+    String directory, {
+    String? defaultDocument,
+    bool listDirectories = false,
+  }) {
+    _router.mount(
+      urlPrefix,
+      createStaticHandler(
+        directory,
+        defaultDocument: defaultDocument,
+        listDirectories: listDirectories,
+      ),
+    );
   }
 
   // ── Start ─────────────────────────────────────────────────────────────────
@@ -300,6 +361,16 @@ class DartAPI {
   /// Set [shared] to `true` when multiple isolates run on the same port —
   /// the OS load-balances connections across all of them.
   ///
+  /// Pass [securityContext] to serve HTTPS directly (most deployments
+  /// terminate TLS at a proxy instead and can ignore this):
+  ///
+  /// ```dart
+  /// final context = SecurityContext()
+  ///   ..useCertificateChain('cert.pem')
+  ///   ..usePrivateKey('key.pem');
+  /// await app.start(port: 443, securityContext: context);
+  /// ```
+  ///
   /// Pipeline order (outermost first):
   ///   requestId → globalException → rateLimit → timeout → backgroundTasks →
   ///   bodySizeLimit → logging → CORS → compression → metrics →
@@ -308,6 +379,7 @@ class DartAPI {
     int port = 8080,
     Object address = '0.0.0.0',
     bool shared = false,
+    SecurityContext? securityContext,
   }) async {
     for (final hook in _startupHooks) {
       await hook();
@@ -331,6 +403,7 @@ class DartAPI {
           maxRequests: _rateLimitMaxRequests!,
           window: _rateLimitWindow!,
           keyExtractor: _rateLimitKeyExtractor,
+          trustProxy: _rateLimitTrustProxy,
         ),
       );
     }
@@ -380,9 +453,16 @@ class DartAPI {
     }
 
     final handler = pipeline.addHandler(_router.handler.call);
-    _server = await io.serve(handler, address, port, shared: shared);
+    _server = await io.serve(
+      handler,
+      address,
+      port,
+      shared: shared,
+      securityContext: securityContext,
+    );
     _stopped = false;
-    log('[$appName] Server running on http://localhost:$port');
+    final scheme = securityContext != null ? 'https' : 'http';
+    log('[$appName] Server running on $scheme://localhost:$port');
 
     _signalSubscriptions.add(
       ProcessSignal.sigint.watch().listen((_) => _shutdownAndExit()),
@@ -394,10 +474,15 @@ class DartAPI {
     }
   }
 
-  /// Stops the server: runs shutdown hooks, then closes the listener.
+  /// Stops the server gracefully: stops accepting new connections, waits up
+  /// to [shutdownGracePeriod] for in-flight requests to complete (then
+  /// force-closes stragglers), and finally runs shutdown hooks.
   ///
-  /// Set [force] to `true` to abort in-flight requests instead of letting
-  /// them complete. Safe to call more than once.
+  /// Hooks run *after* the drain so a hook that closes the database cannot
+  /// break requests that are still completing.
+  ///
+  /// Set [force] to `true` to abort in-flight requests immediately instead
+  /// of draining. Safe to call more than once.
   Future<void> stop({bool force = false}) async {
     if (_stopped) return;
     _stopped = true;
@@ -406,15 +491,45 @@ class DartAPI {
       await sub.cancel();
     }
     _signalSubscriptions.clear();
+    final server = _server;
+    _server = null;
+    if (server != null) {
+      if (!force) {
+        await _drain(server);
+      }
+      // Destroys any connections still open (idle keep-alives or requests
+      // that outlived the grace period).
+      await server.close(force: true);
+    }
     for (final hook in _shutdownHooks) {
       await hook();
     }
-    await _server?.close(force: force);
-    _server = null;
+  }
+
+  /// Stops accepting new connections, then waits (bounded by
+  /// [shutdownGracePeriod]) until no connection is still serving a request.
+  ///
+  /// `connectionsInfo().active` stays non-zero until the response has been
+  /// fully written to the socket — dart:io's `close(force: false)` alone
+  /// does not wait for that.
+  Future<void> _drain(HttpServer server) async {
+    await server.close();
+    final deadline = DateTime.now().add(shutdownGracePeriod);
+    while (server.connectionsInfo().active > 0) {
+      if (DateTime.now().isAfter(deadline)) {
+        log(
+          '[$appName] Shutdown grace period '
+          '(${shutdownGracePeriod.inSeconds}s) exceeded — force-closing '
+          '${server.connectionsInfo().active} active connection(s).',
+        );
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
   }
 
   Future<void> _shutdownAndExit() async {
-    await stop(force: true);
+    await stop();
     exit(0);
   }
 }

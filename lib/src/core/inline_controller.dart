@@ -21,5 +21,10 @@ class InlineController extends BaseController {
   @override
   final List<ApiRoute> routes;
 
-  InlineController(this.routes);
+  /// Optional OpenAPI tag stamped on routes that declare no explicit tags,
+  /// mirroring [BaseController.tag].
+  @override
+  final String? tag;
+
+  InlineController(this.routes, {this.tag});
 }

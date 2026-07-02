@@ -3,11 +3,20 @@ import 'dart:convert';
 
 import 'package:shelf/shelf.dart';
 
+import '../utils/client_ip.dart';
+
 /// Token-bucket rate limiter middleware.
 ///
-/// Each unique key (IP address by default) gets a bucket of [maxRequests]
-/// tokens that refills fully after every [window]. When the bucket is empty
-/// the request is rejected with `429 Too Many Requests`.
+/// Each unique key gets a bucket of [maxRequests] tokens that refills fully
+/// after every [window]. When the bucket is empty the request is rejected
+/// with `429 Too Many Requests`.
+///
+/// The default key is the client IP from the TCP connection, which cannot
+/// be spoofed. Behind a reverse proxy or load balancer every request would
+/// then share the proxy's IP — set [trustProxy] to `true` there so the
+/// first `X-Forwarded-For` entry is used instead. Never enable [trustProxy]
+/// on a directly exposed server: the header is client-controlled and would
+/// let clients dodge the limiter by rotating fake IPs.
 ///
 /// ```dart
 /// Pipeline()
@@ -25,13 +34,14 @@ import 'package:shelf/shelf.dart';
 ///   maxRequests: 1000,
 ///   keyExtractor: (req) =>
 ///       (req.context['user'] as Map?)?['sub'] as String? ??
-///       _clientIp(req),
+///       clientIp(req),
 /// )
 /// ```
 Middleware rateLimitMiddleware({
   int maxRequests = 100,
   Duration window = const Duration(minutes: 1),
   String Function(Request)? keyExtractor,
+  bool trustProxy = false,
 }) {
   final buckets = HashMap<String, _Bucket>();
   // Prune expired buckets periodically so the map cannot grow without bound
@@ -41,7 +51,9 @@ Middleware rateLimitMiddleware({
   return (Handler inner) {
     return (Request request) async {
       final key =
-          keyExtractor != null ? keyExtractor(request) : _clientIp(request);
+          keyExtractor != null
+              ? keyExtractor(request)
+              : clientIp(request, trustProxy: trustProxy);
 
       final now = DateTime.now();
       if (now.isAfter(nextPrune)) {
@@ -99,8 +111,3 @@ class _Bucket {
   _Bucket(this.tokens, DateTime start, Duration window)
     : windowEnd = start.add(window);
 }
-
-String _clientIp(Request request) =>
-    request.headers['x-forwarded-for']?.split(',').first.trim() ??
-    request.headers['x-real-ip'] ??
-    'unknown';

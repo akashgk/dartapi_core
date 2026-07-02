@@ -429,10 +429,15 @@ app.configureLogging(                                            // built-in log
   excludePaths: ['/health', '/metrics'],
 );
 
-await app.start(port: 8080);   // also: address:, shared:
+await app.start(port: 8080);   // also: address:, shared:, securityContext:
 // ...
-await app.stop();              // graceful shutdown (runs onShutdown hooks)
+await app.stop();              // graceful shutdown (drains, then runs onShutdown hooks)
 ```
+
+> **Behind a proxy or load balancer?** Rate limiting keys by the real socket
+> IP by default (spoof-proof). Add `trustProxy: true` to `enableRateLimit`
+> so clients are identified by the first `X-Forwarded-For` entry instead of
+> the proxy's IP. Never set it on a directly exposed server.
 
 ### Per-route middleware
 
@@ -460,6 +465,57 @@ ApiRoute(
 | `bodySizeLimitMiddleware(maxBytes:)` | Rejects oversized payloads with 413 |
 | `timeoutMiddleware(duration)` | Returns 408 when a handler exceeds the timeout |
 | `metricsMiddleware()` | Records Prometheus counters and latency histograms |
+
+---
+
+## Production Deployment
+
+### Graceful shutdown
+
+SIGINT/SIGTERM (and `await app.stop()`) stop accepting new connections,
+wait until every in-flight response is fully written, then force-close
+stragglers. `onShutdown` hooks run **after** the drain, so closing your
+database in a hook is safe. Tune the drain window with:
+
+```dart
+final app = DartAPI(shutdownGracePeriod: Duration(seconds: 15)); // default 30s
+```
+
+This is exactly what a Kubernetes rolling deploy expects — no dropped
+requests on `SIGTERM`.
+
+### API versioning
+
+```dart
+app.addControllers([UserController(), OrderController()], prefix: '/api/v1');
+// GET /users → GET /api/v1/users — OpenAPI spec shows the full path too
+```
+
+### Static files
+
+```dart
+app.serveStatic('/public', 'web');                       // GET /public/logo.png
+app.serveStatic('/', 'web', defaultDocument: 'index.html'); // SPA hosting
+```
+
+### Native TLS
+
+Most deployments terminate TLS at a proxy — but serving HTTPS directly is
+one parameter:
+
+```dart
+final context = SecurityContext()
+  ..useCertificateChain('cert.pem')
+  ..usePrivateKey('key.pem');
+await app.start(port: 443, securityContext: context);
+```
+
+### Real client IPs
+
+`clientIp(request)` returns the connection's socket IP — spoof-proof.
+Behind a trusted proxy, `clientIp(request, trustProxy: true)` reads
+`X-Forwarded-For` / `X-Real-IP`. Use it for audit logs and custom
+rate-limit keys.
 
 ---
 

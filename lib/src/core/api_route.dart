@@ -200,6 +200,29 @@ class ApiRoute<ApiInput, ApiOutput> {
         deprecated: deprecated,
       );
 
+  /// Returns a copy of this route with the given [newPath], leaving all other
+  /// fields unchanged. Used by [RouterManager] to apply a route prefix
+  /// (e.g. `/api/v1`) so the OpenAPI spec shows the full path.
+  ApiRoute<ApiInput, ApiOutput> withPath(String newPath) =>
+      ApiRoute<ApiInput, ApiOutput>(
+        method: method,
+        path: newPath,
+        typedHandler: typedHandler,
+        dtoParser: dtoParser,
+        middlewares: middlewares,
+        cacheTtl: cacheTtl,
+        summary: summary,
+        description: description,
+        requestSchema: requestSchema,
+        responseSchema: responseSchema,
+        statusCode: statusCode,
+        security: security,
+        contentType: contentType,
+        queryParams: queryParams,
+        tags: tags,
+        deprecated: deprecated,
+      );
+
   /// Effective middlewares for this route, including [cacheMiddleware] when
   /// [cacheTtl] is set. Used by [RouterManager] when registering routes.
   ///

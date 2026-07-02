@@ -198,29 +198,6 @@ class JwtService {
         ),
       );
 
-  /// Generates a signed refresh token derived from a valid [accessToken].
-  ///
-  /// Throws [ArgumentError] if [accessToken] cannot be verified.
-  @Deprecated(
-    'Use generateTokenPair instead — deriving a long-lived refresh token '
-    'from a short-lived access token allows a stolen access token to be '
-    'upgraded into a refresh token. Will be removed in 0.4.0.',
-  )
-  String generateRefreshToken({required String accessToken}) {
-    final oldPayload = _verifyAccessTokenSync(accessToken);
-    if (oldPayload == null) {
-      throw ArgumentError(
-        'Invalid access token, cannot generate refresh token',
-      );
-    }
-    return _generateToken(
-      type: 'refresh',
-      expiry: refreshTokenExpiry,
-      claims: oldPayload,
-      key: _refreshSignKey,
-    );
-  }
-
   String _generateToken({
     required String type,
     required Duration expiry,
