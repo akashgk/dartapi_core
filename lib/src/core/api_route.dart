@@ -6,8 +6,11 @@ import 'api_exception.dart';
 import 'api_methods.dart';
 import 'serializable.dart';
 import '../middleware/cache_middleware.dart';
+import '../openapi/path_param_spec.dart';
+import '../openapi/response_spec.dart';
 import '../openapi/security_scheme.dart';
 import '../openapi/query_param_spec.dart';
+import '../validation/field_set.dart';
 
 /// Represents a single HTTP route in your DartAPI application.
 ///
@@ -47,10 +50,45 @@ class ApiRoute<ApiInput, ApiOutput> {
   final String? description;
 
   /// Optional schema definition of the request body, for documentation or validation.
+  ///
+  /// Prefer [requestFields] — it derives the schema from the same [FieldSet]
+  /// that validates the request, so the docs can never drift from runtime
+  /// behaviour. When both are set, [requestSchema] wins.
   final Map<String, dynamic>? requestSchema;
+
+  /// The [FieldSet] that validates this route's request body.
+  ///
+  /// Declare it once and the OpenAPI request schema is derived from it —
+  /// no separate [requestSchema] needed, and a `422 Validation Error`
+  /// response is documented automatically:
+  ///
+  /// ```dart
+  /// ApiRoute(
+  ///   method: ApiMethod.post,
+  ///   path: '/users',
+  ///   dtoParser: CreateUserDTO.fromJson,
+  ///   requestFields: CreateUserDTO.fields,
+  ///   typedHandler: createUser,
+  /// )
+  /// ```
+  final FieldSet? requestFields;
 
   /// Optional schema definition of the response body, for documentation or validation.
   final Map<String, dynamic>? responseSchema;
+
+  /// Additional documented responses beyond the success [statusCode]
+  /// (e.g. `404`). Merged over the automatic 422/400/401 entries, so an
+  /// explicit spec here always wins.
+  final Map<int, ResponseSpec> responses;
+
+  /// Stable operation identifier used by OpenAPI client generators for
+  /// method names (e.g. `listUsers`). When omitted, one is derived from the
+  /// method and path (`GET /users/<id>` → `get_users_by_id`).
+  final String? operationId;
+
+  /// Typed documentation for path parameters. Parameters present in the
+  /// path but not declared here are documented as strings.
+  final List<PathParamSpec> pathParams;
 
   /// The HTTP status code returned on a successful response. Defaults to 200.
   ///
@@ -168,7 +206,11 @@ class ApiRoute<ApiInput, ApiOutput> {
     this.summary,
     this.description,
     this.requestSchema,
+    this.requestFields,
     this.responseSchema,
+    this.responses = const {},
+    this.operationId,
+    this.pathParams = const [],
     this.statusCode = 200,
     this.security = const [],
     this.contentType = 'application/json',
@@ -177,36 +219,27 @@ class ApiRoute<ApiInput, ApiOutput> {
     this.deprecated = false,
   });
 
+  /// The request body schema for OpenAPI: explicit [requestSchema] when set,
+  /// otherwise derived from [requestFields].
+  Map<String, dynamic>? get effectiveRequestSchema =>
+      requestSchema ?? requestFields?.toJsonSchema();
+
   /// Returns a copy of this route with the given [newTags], leaving all other
   /// fields unchanged. Used by [RouterManager] to apply a controller's default
   /// tag to routes that declare no explicit tags.
   ApiRoute<ApiInput, ApiOutput> withTags(List<String> newTags) =>
-      ApiRoute<ApiInput, ApiOutput>(
-        method: method,
-        path: path,
-        typedHandler: typedHandler,
-        dtoParser: dtoParser,
-        middlewares: middlewares,
-        cacheTtl: cacheTtl,
-        summary: summary,
-        description: description,
-        requestSchema: requestSchema,
-        responseSchema: responseSchema,
-        statusCode: statusCode,
-        security: security,
-        contentType: contentType,
-        queryParams: queryParams,
-        tags: newTags,
-        deprecated: deprecated,
-      );
+      _copy(tags: newTags);
 
   /// Returns a copy of this route with the given [newPath], leaving all other
   /// fields unchanged. Used by [RouterManager] to apply a route prefix
   /// (e.g. `/api/v1`) so the OpenAPI spec shows the full path.
   ApiRoute<ApiInput, ApiOutput> withPath(String newPath) =>
+      _copy(path: newPath);
+
+  ApiRoute<ApiInput, ApiOutput> _copy({String? path, List<String>? tags}) =>
       ApiRoute<ApiInput, ApiOutput>(
         method: method,
-        path: newPath,
+        path: path ?? this.path,
         typedHandler: typedHandler,
         dtoParser: dtoParser,
         middlewares: middlewares,
@@ -214,12 +247,16 @@ class ApiRoute<ApiInput, ApiOutput> {
         summary: summary,
         description: description,
         requestSchema: requestSchema,
+        requestFields: requestFields,
         responseSchema: responseSchema,
+        responses: responses,
+        operationId: operationId,
+        pathParams: pathParams,
         statusCode: statusCode,
         security: security,
         contentType: contentType,
         queryParams: queryParams,
-        tags: tags,
+        tags: tags ?? this.tags,
         deprecated: deprecated,
       );
 

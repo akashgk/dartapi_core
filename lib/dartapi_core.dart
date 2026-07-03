@@ -24,6 +24,8 @@ export 'src/openapi/security_scheme.dart';
 export 'src/openapi/openapi_generator.dart';
 export 'src/openapi/docs_controller.dart';
 export 'src/openapi/query_param_spec.dart';
+export 'src/openapi/path_param_spec.dart';
+export 'src/openapi/response_spec.dart';
 
 export 'src/utils/utils.dart';
 export 'src/utils/multipart.dart';

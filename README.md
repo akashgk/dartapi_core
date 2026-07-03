@@ -595,22 +595,58 @@ Tasks run sequentially after the response resolves. Errors in tasks are swallowe
 ## OpenAPI / Swagger Docs
 
 ```dart
-app.addControllers([userController, productController]);
 app.enableDocs(
   title: 'My App',
   version: '1.0.0',
-  schemas: {'CreateUserDTO': CreateUserDTO.schema},  // optional shared schemas
+  servers: ['https://api.example.com'],
 );
+app.addControllers([userController, productController]); // order doesn't matter
 await app.start();
 ```
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /openapi.json` | OpenAPI 3.0 spec |
-| `GET /docs` | Swagger UI (with persistent Bearer token support) |
+| `GET /openapi.json` | OpenAPI 3.0 spec (generated once, then cached) |
+| `GET /docs` | Swagger UI (persistent Bearer token, search filter, deep links) |
 | `GET /redoc` | ReDoc UI |
 
-**Documenting query parameters** — use `QueryParamSpec` so params appear in Swagger UI:
+**Declare the schema once** — pass the same `FieldSet` that validates the
+request as `requestFields` and the request body schema is derived from it.
+Docs can never drift from what the server actually enforces:
+
+```dart
+ApiRoute<CreateUserDTO, User>(
+  method: ApiMethod.post,
+  path: '/users',
+  dtoParser: CreateUserDTO.fromJson,
+  requestFields: CreateUserDTO.fields,   // ← schema + auto-documented 422/400
+  typedHandler: createUser,
+)
+```
+
+**The spec documents what the framework actually does.** Routes with a body
+parser automatically document `422 Validation Error` and `400 Bad Request`
+(with schemas matching the real error envelopes); routes with `security`
+document `401 Unauthorized`. Add anything else per route:
+
+```dart
+ApiRoute(
+  path: '/users/<id>',
+  operationId: 'getUser',                              // clean client codegen names
+  pathParams: [PathParamSpec('id', type: 'integer')],  // typed path params
+  responses: {404: ResponseSpec('User not found')},    // extra responses
+  ...
+)
+```
+
+Every operation gets an `operationId` (derived from method + path when not
+set), so `openapi-generator` / `orval` produce usable client method names.
+
+**Security schemes** — `SecurityScheme.bearer` (JWT lock icon) and
+`SecurityScheme.apiKey` (header key, name configurable via
+`enableDocs(apiKeyHeader: ...)` to match `apiKeyMiddleware`).
+
+**Query parameters** — use `QueryParamSpec`:
 
 ```dart
 ApiRoute(
@@ -632,6 +668,19 @@ app.enableDocs(schemas: {'CreateUserDTO': CreateUserDTO.schema});
 
 // on a route:
 ApiRoute(requestSchema: {r'$ref': '#/components/schemas/CreateUserDTO'}, ...)
+```
+
+**Self-hosting the UI** — Swagger UI/ReDoc assets load from jsdelivr at
+**pinned versions** (never `@latest`), so `/docs` cannot break under you.
+For air-gapped or strict-CSP deployments, serve the files yourself:
+
+```dart
+app.serveStatic('/assets', 'third_party/swagger');
+app.enableDocs(
+  swaggerUiCssUrl: '/assets/swagger-ui.css',
+  swaggerUiJsUrl: '/assets/swagger-ui-bundle.js',
+  redocJsUrl: '/assets/redoc.standalone.js',
+);
 ```
 
 ---

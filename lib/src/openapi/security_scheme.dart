@@ -14,4 +14,9 @@
 enum SecurityScheme {
   /// HTTP Bearer token authentication (e.g. JWT).
   bearer,
+
+  /// Static API key sent in a request header (default `X-API-Key`, matching
+  /// `apiKeyMiddleware`). Configure the header name via
+  /// `enableDocs(apiKeyHeader: ...)`.
+  apiKey,
 }

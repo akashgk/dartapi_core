@@ -56,7 +56,10 @@ class BookController extends BaseController {
       method: ApiMethod.get,
       path: '/books/<id>',
       summary: 'Get book',
+      operationId: 'getBook',
+      pathParams: [PathParamSpec('id', type: 'integer')],
       responseSchema: {r'$ref': '#/components/schemas/Book'},
+      responses: {404: ResponseSpec('Book not found')},
       typedHandler: (req, _) async {
         final id = req.pathParam<int>('id');
         return _repo.getById(id) ??
@@ -81,9 +84,12 @@ class BookController extends BaseController {
       method: ApiMethod.put,
       path: '/books/<id>',
       summary: 'Update book',
+      operationId: 'updateBook',
+      pathParams: [PathParamSpec('id', type: 'integer')],
       dtoParser: BookDTO.fromJson,
       requestSchema: {r'$ref': '#/components/schemas/BookDTO'},
       responseSchema: {r'$ref': '#/components/schemas/Book'},
+      responses: {404: ResponseSpec('Book not found')},
       middlewares: [authMiddleware(_jwt)],
       security: [SecurityScheme.bearer],
       typedHandler: (req, dto) async {
@@ -98,6 +104,9 @@ class BookController extends BaseController {
       path: '/books/<id>',
       statusCode: 204,
       summary: 'Delete book',
+      operationId: 'deleteBook',
+      pathParams: [PathParamSpec('id', type: 'integer')],
+      responses: {404: ResponseSpec('Book not found')},
       middlewares: [authMiddleware(_jwt)],
       security: [SecurityScheme.bearer],
       typedHandler: (req, _) async {

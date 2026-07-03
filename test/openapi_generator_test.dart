@@ -13,7 +13,7 @@ void main() {
         description: 'A test API',
       );
       final spec = gen.generate();
-      expect(spec['openapi'], equals('3.0.0'));
+      expect(spec['openapi'], equals('3.0.3'));
       expect(spec['info']['title'], equals('Test API'));
       expect(spec['info']['version'], equals('2.0.0'));
       expect(spec['info']['description'], equals('A test API'));
@@ -154,7 +154,7 @@ void main() {
       final gen = OpenApiGenerator(routes: [], title: 'API', version: '1.0.0');
       final json = gen.toJson();
       final decoded = jsonDecode(json);
-      expect(decoded['openapi'], equals('3.0.0'));
+      expect(decoded['openapi'], equals('3.0.3'));
     });
 
     test('multiple routes on the same path are grouped', () {
@@ -179,7 +179,7 @@ void main() {
 
   group('DocsController', () {
     test('exposes /openapi.json, /docs, /redoc routes', () {
-      final controller = DocsController(apiRoutes: [], title: 'API');
+      final controller = DocsController(routesProvider: () => [], title: 'API');
       final paths = controller.routes.map((r) => r.path).toList();
       expect(paths, containsAll(['/openapi.json', '/docs', '/redoc']));
     });
@@ -192,9 +192,9 @@ void main() {
         typedHandler: (req, _) async => 'pong',
       );
       final controller = DocsController(
-        apiRoutes: [route],
+        routesProvider: () => [route],
         title: 'TestAPI',
-        version: '3.0.0',
+        version: '3.0.3',
       );
       final jsonRoute = controller.routes.firstWhere(
         (r) => r.path == '/openapi.json',
@@ -208,18 +208,18 @@ void main() {
       );
       final decoded = jsonDecode(result);
       expect(decoded['info']['title'], equals('TestAPI'));
-      expect(decoded['info']['version'], equals('3.0.0'));
+      expect(decoded['info']['version'], equals('3.0.3'));
       expect(decoded['paths'], contains('/ping'));
     });
 
     test('/docs route has text/html content type', () {
-      final controller = DocsController(apiRoutes: [], title: 'API');
+      final controller = DocsController(routesProvider: () => [], title: 'API');
       final docsRoute = controller.routes.firstWhere((r) => r.path == '/docs');
       expect(docsRoute.contentType, equals('text/html'));
     });
 
     test('/redoc route has text/html content type', () {
-      final controller = DocsController(apiRoutes: [], title: 'API');
+      final controller = DocsController(routesProvider: () => [], title: 'API');
       final redocRoute = controller.routes.firstWhere(
         (r) => r.path == '/redoc',
       );
@@ -227,7 +227,10 @@ void main() {
     });
 
     test('/docs handler returns HTML with swagger-ui', () async {
-      final controller = DocsController(apiRoutes: [], title: 'MyDocs');
+      final controller = DocsController(
+        routesProvider: () => [],
+        title: 'MyDocs',
+      );
       final docsRoute = controller.routes.firstWhere((r) => r.path == '/docs');
       final html = await docsRoute.typedHandler(_dummyRequest(), null);
       expect(html, contains('swagger-ui'));
@@ -235,7 +238,10 @@ void main() {
     });
 
     test('/redoc handler returns HTML with redoc tag', () async {
-      final controller = DocsController(apiRoutes: [], title: 'MyDocs');
+      final controller = DocsController(
+        routesProvider: () => [],
+        title: 'MyDocs',
+      );
       final redocRoute = controller.routes.firstWhere(
         (r) => r.path == '/redoc',
       );

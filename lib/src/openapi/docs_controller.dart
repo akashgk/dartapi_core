@@ -3,12 +3,34 @@ import '../core/api_route.dart';
 import '../core/base_controller.dart';
 import 'openapi_generator.dart';
 
+/// Pinned UI asset versions — bumped deliberately with releases, never
+/// `@latest`, so `/docs` cannot break because a CDN shipped a new major.
+const String kSwaggerUiVersion = '5.32.8';
+const String kRedocVersion = '2.5.3';
+
+const String _defaultSwaggerCss =
+    'https://cdn.jsdelivr.net/npm/swagger-ui-dist@$kSwaggerUiVersion/swagger-ui.css';
+const String _defaultSwaggerJs =
+    'https://cdn.jsdelivr.net/npm/swagger-ui-dist@$kSwaggerUiVersion/swagger-ui-bundle.js';
+const String _defaultRedocJs =
+    'https://cdn.jsdelivr.net/npm/redoc@$kRedocVersion/bundles/redoc.standalone.js';
+
 /// A [BaseController] that serves OpenAPI documentation endpoints.
 ///
 /// Registers three routes:
-/// - `GET /openapi.json` — raw OpenAPI 3.0 spec
-/// - `GET /docs`         — Swagger UI (CDN-hosted)
-/// - `GET /redoc`        — ReDoc UI (CDN-hosted)
+/// - `GET /openapi.json` — OpenAPI 3.0 spec (generated once, then cached)
+/// - `GET /docs`         — Swagger UI
+/// - `GET /redoc`        — ReDoc
+///
+/// Routes are read lazily through [routesProvider] on the first request, so
+/// the registration order of controllers no longer matters. The three docs
+/// routes themselves are excluded from the spec.
+///
+/// UI assets are loaded from jsdelivr at **pinned versions**
+/// ([kSwaggerUiVersion], [kRedocVersion]). For air-gapped or CSP-restricted
+/// deployments, serve the files yourself (e.g. `app.serveStatic('/assets',
+/// 'third_party')`) and point [swaggerUiCssUrl] / [swaggerUiJsUrl] /
+/// [redocJsUrl] at them.
 ///
 /// Typically used via [DartAPI.enableDocs()]:
 /// ```dart
@@ -17,21 +39,55 @@ import 'openapi_generator.dart';
 /// await app.start();
 /// ```
 class DocsController extends BaseController {
-  final List<ApiRoute> apiRoutes;
+  /// Returns the routes to document, read lazily on first request.
+  final List<ApiRoute> Function() routesProvider;
+
   final String title;
   final String version;
   final String description;
+  final List<String> servers;
+  final String apiKeyHeader;
   final Map<String, Map<String, dynamic>> schemas;
   final Map<String, String> tagDescriptions;
+  final String swaggerUiCssUrl;
+  final String swaggerUiJsUrl;
+  final String redocJsUrl;
+
+  String? _cachedSpecJson;
 
   DocsController({
-    required this.apiRoutes,
+    required this.routesProvider,
     required this.title,
     this.version = '1.0.0',
     this.description = '',
+    this.servers = const [],
+    this.apiKeyHeader = 'X-API-Key',
     this.schemas = const {},
     this.tagDescriptions = const {},
-  });
+    String? swaggerUiCssUrl,
+    String? swaggerUiJsUrl,
+    String? redocJsUrl,
+  }) : swaggerUiCssUrl = swaggerUiCssUrl ?? _defaultSwaggerCss,
+       swaggerUiJsUrl = swaggerUiJsUrl ?? _defaultSwaggerJs,
+       redocJsUrl = redocJsUrl ?? _defaultRedocJs;
+
+  static const _ownPaths = {'/openapi.json', '/docs', '/redoc'};
+
+  String get _specJson =>
+      _cachedSpecJson ??=
+          OpenApiGenerator(
+            routes:
+                routesProvider()
+                    .where((r) => !_ownPaths.contains(r.path))
+                    .toList(),
+            title: title,
+            version: version,
+            description: description,
+            servers: servers,
+            apiKeyHeader: apiKeyHeader,
+            schemas: schemas,
+            tagDescriptions: tagDescriptions,
+          ).toJson();
 
   @override
   List<ApiRoute> get routes => [
@@ -44,16 +100,7 @@ class DocsController extends BaseController {
     method: ApiMethod.get,
     path: '/openapi.json',
     summary: 'OpenAPI 3.0 specification',
-    typedHandler:
-        (req, _) async =>
-            OpenApiGenerator(
-              routes: apiRoutes,
-              title: title,
-              version: version,
-              description: description,
-              schemas: schemas,
-              tagDescriptions: tagDescriptions,
-            ).toJson(),
+    typedHandler: (req, _) async => _specJson,
   );
 
   ApiRoute<void, String> _swaggerUiRoute() => ApiRoute<void, String>(
@@ -61,7 +108,8 @@ class DocsController extends BaseController {
     path: '/docs',
     summary: 'Swagger UI',
     contentType: 'text/html',
-    typedHandler: (req, _) async => _swaggerHtml(title),
+    typedHandler:
+        (req, _) async => _swaggerHtml(title, swaggerUiCssUrl, swaggerUiJsUrl),
   );
 
   ApiRoute<void, String> _redocRoute() => ApiRoute<void, String>(
@@ -69,34 +117,38 @@ class DocsController extends BaseController {
     path: '/redoc',
     summary: 'ReDoc UI',
     contentType: 'text/html',
-    typedHandler: (req, _) async => _redocHtml(title),
+    typedHandler: (req, _) async => _redocHtml(title, redocJsUrl),
   );
 }
 
-String _swaggerHtml(String title) => '''<!DOCTYPE html>
+String _swaggerHtml(String title, String cssUrl, String jsUrl) =>
+    '''<!DOCTYPE html>
 <html>
   <head>
     <title>$title — Swagger UI</title>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css">
+    <link rel="stylesheet" href="$cssUrl">
   </head>
   <body>
     <div id="swagger-ui"></div>
-    <script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
+    <script src="$jsUrl"></script>
     <script>
       SwaggerUIBundle({
         url: '/openapi.json',
         dom_id: '#swagger-ui',
         presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
         layout: 'BaseLayout',
+        deepLinking: true,
+        filter: true,
+        tryItOutEnabled: true,
         persistAuthorization: true,
       });
     </script>
   </body>
 </html>''';
 
-String _redocHtml(String title) => '''<!DOCTYPE html>
+String _redocHtml(String title, String jsUrl) => '''<!DOCTYPE html>
 <html>
   <head>
     <title>$title — ReDoc</title>
@@ -105,6 +157,6 @@ String _redocHtml(String title) => '''<!DOCTYPE html>
   </head>
   <body>
     <redoc spec-url="/openapi.json"></redoc>
-    <script src="https://cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.js"></script>
+    <script src="$jsUrl"></script>
   </body>
 </html>''';

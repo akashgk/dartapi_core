@@ -279,34 +279,54 @@ class DartAPI {
   }) => _router.registerController(HealthController(checks: checks));
 
   /// Registers OpenAPI docs at `/openapi.json`, `/docs` (Swagger UI), and
-  /// `/redoc`. Call this *after* [addControllers] so all routes are collected.
+  /// `/redoc`.
   ///
-  /// [tagDescriptions] is an optional map from tag name to description string.
-  /// These appear in the top-level `tags` array of the OpenAPI spec, adding
-  /// human-readable descriptions to each group in Swagger UI and ReDoc.
+  /// Routes are collected lazily when the spec is first requested, so this
+  /// can be called before or after [addControllers]. The spec is generated
+  /// once and cached.
+  ///
+  /// [servers] lists base URLs for the spec's `servers` array (drives
+  /// Swagger UI's "Try it out" and generated clients). [apiKeyHeader] is the
+  /// header documented for [SecurityScheme.apiKey] routes — match it to
+  /// `apiKeyMiddleware`'s `headerName`. [tagDescriptions] adds descriptions
+  /// to tag groups in Swagger UI and ReDoc.
+  ///
+  /// UI assets load from jsdelivr at pinned versions; override
+  /// [swaggerUiCssUrl] / [swaggerUiJsUrl] / [redocJsUrl] to self-host them
+  /// (e.g. via [serveStatic]) for air-gapped deployments.
   ///
   /// ```dart
   /// app.enableDocs(
   ///   title: 'My API',
-  ///   tagDescriptions: {
-  ///     'Users':    'User management endpoints',
-  ///     'Products': 'Product catalogue',
-  ///   },
+  ///   servers: ['https://api.example.com'],
+  ///   tagDescriptions: {'Users': 'User management endpoints'},
   /// );
   /// ```
   void enableDocs({
     String title = 'API',
     String version = '1.0.0',
+    String description = '',
+    List<String> servers = const [],
+    String apiKeyHeader = 'X-API-Key',
     Map<String, Map<String, dynamic>> schemas = const {},
     Map<String, String> tagDescriptions = const {},
+    String? swaggerUiCssUrl,
+    String? swaggerUiJsUrl,
+    String? redocJsUrl,
   }) {
     _router.registerController(
       DocsController(
-        apiRoutes: _router.collectedRoutes,
+        routesProvider: () => _router.collectedRoutes,
         title: title,
         version: version,
+        description: description,
+        servers: servers,
+        apiKeyHeader: apiKeyHeader,
         schemas: schemas,
         tagDescriptions: tagDescriptions,
+        swaggerUiCssUrl: swaggerUiCssUrl,
+        swaggerUiJsUrl: swaggerUiJsUrl,
+        redocJsUrl: redocJsUrl,
       ),
     );
   }

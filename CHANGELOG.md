@@ -1,3 +1,26 @@
+## 0.5.0
+
+**OpenAPI overhaul — the spec now documents what the framework actually does, and the docs UI can't break under you.**
+
+### Breaking changes
+
+- `DocsController` now takes a lazy `routesProvider: () => routes` instead of `apiRoutes: routes`. If you only use `app.enableDocs()`, nothing changes — but `enableDocs` may now be called **before or after** `addControllers` (routes are collected on first request, removing the silent "controllers registered after enableDocs are missing from the docs" footgun).
+- The spec version is now `3.0.3` (was `3.0.0`).
+- The three docs routes (`/openapi.json`, `/docs`, `/redoc`) no longer appear in the generated spec.
+
+### New features
+
+- **`ApiRoute.requestFields: FieldSet`** — pass the same `FieldSet` that validates the request; the request body schema is derived from it. One declaration, zero drift between validation and documentation.
+- **Automatic error responses.** Routes with a body parser document `422 Validation Error` and `400 Bad Request` (schemas match the real error envelopes: `{"errors":[{"field","message"}]}` and `{"error","message"}`); routes with `security` document `401 Unauthorized`. `ValidationError`/`Error` component schemas are added automatically.
+- **`ApiRoute.responses: {404: ResponseSpec('Not found', schema: ...)}`** — document any additional responses; explicit entries override the automatic ones.
+- **`operationId` on every operation** — explicit via `ApiRoute.operationId`, otherwise derived from method + path (`GET /users/<id>` → `get_users_by_id`). OpenAPI client generators now produce usable method names instead of garbage.
+- **Typed path parameters** via `ApiRoute.pathParams: [PathParamSpec('id', type: 'integer')]`; undeclared params still default to string.
+- **`SecurityScheme.apiKey`** — documents header API-key auth (lock icon in Swagger UI); header name configurable via `enableDocs(apiKeyHeader:)` to match `apiKeyMiddleware`.
+- **`servers` in the spec** via `enableDocs(servers: ['https://api.example.com'])` — drives Swagger UI "Try it out" base URLs and client codegen.
+- **Pinned, overridable UI assets.** Swagger UI (`5.32.8`) and ReDoc (`2.5.3`) load from jsdelivr at pinned versions instead of unpkg `@latest` — an upstream major release can no longer break `/docs` overnight. Override `swaggerUiCssUrl` / `swaggerUiJsUrl` / `redocJsUrl` to self-host for air-gapped/CSP-restricted deployments.
+- **Spec caching** — `/openapi.json` is generated once and cached instead of rebuilt per request.
+- Swagger UI enables `deepLinking`, `filter` (search box), and `tryItOutEnabled` by default.
+
 ## 0.4.0
 
 **Production runtime hardening: graceful shutdown, TLS, proxy-safe rate limiting, API versioning, static files.**

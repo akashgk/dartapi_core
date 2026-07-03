@@ -262,7 +262,7 @@ void main() {
         typedHandler: (req, _) async => 'ok',
       );
       final controller = DocsController(
-        apiRoutes: [route],
+        routesProvider: () => [route],
         title: 'API',
         tagDescriptions: {'Books': 'All about books'},
       );
