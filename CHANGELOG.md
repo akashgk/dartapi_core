@@ -1,3 +1,9 @@
+## 0.7.1
+
+- Raise dependency floors to the current latest releases: `crypto ^3.0.7`,
+  `shelf_router ^1.1.4`, `shelf_cors_headers ^0.1.5`, `test ^1.31.2`.
+  No behaviour changes.
+
 ## 0.7.0
 
 **Built-in password hashing — `PasswordHasher`.**
