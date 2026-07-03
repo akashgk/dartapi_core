@@ -1,3 +1,39 @@
+## 0.6.0
+
+**Session-wide token revocation — `revokeAllForUser`.**
+
+Until now the `TokenStore` could only revoke one token (`jti`) at a time, so
+the documented response to refresh-token reuse ("revoke the whole session")
+was not actually expressible with the framework's own APIs.
+
+### New features
+
+- **`JwtService.revokeAllForUser(sub)`** — invalidates every outstanding
+  access *and* refresh token for a subject. Tokens issued at or before the
+  revocation moment are rejected by `verifyAccessToken`/`verifyRefreshToken`;
+  a fresh login afterwards works normally. The revocation entry expires on
+  its own once the longest-lived token would have expired anyway.
+- **`TokenStore.revokeSubject(sub, cutoffEpochSeconds:, ttl:)`** and
+  **`TokenStore.subjectRevocationCutoff(sub)`** — the underlying primitives,
+  with in-process default implementations on the base class. Like
+  `revokeIfActive`, distributed backends (Redis, SQL) should override them
+  with a shared store.
+- Session-revoked refresh tokens are rejected **without** firing
+  `onRefreshTokenReuse` — a dead session is not a theft signal.
+
+### Notes
+
+- The intended wiring, now actually possible:
+  ```dart
+  onRefreshTokenReuse: (payload) async {
+    final sub = payload['sub'];
+    if (sub is String) await jwtService.revokeAllForUser(sub);
+  }
+  ```
+- Reminder: `InMemoryTokenStore` (including its new subject entries) is
+  per-process. Behind `--isolates=N` or multiple instances, use a shared
+  `TokenStore` backend — a Redis adapter is on the roadmap.
+
 ## 0.5.0
 
 **OpenAPI overhaul — the spec now documents what the framework actually does, and the docs UI can't break under you.**

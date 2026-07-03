@@ -351,18 +351,26 @@ if (payload == null) throw ApiException(401, 'Invalid refresh token');
 final pair = jwt.generateTokenPair(claims: {'sub': payload['sub']});
 ```
 
-Reuse of an already-rotated refresh token is the classic token-theft signal. Hook
-`onRefreshTokenReuse` to respond (e.g. force re-login):
+Reuse of an already-rotated refresh token is the classic token-theft signal.
+Hook `onRefreshTokenReuse` and kill the whole session with
+`revokeAllForUser` — every outstanding access and refresh token for that
+user (including any the attacker just minted) becomes invalid, while a
+fresh login afterwards works normally:
 
 ```dart
-JwtService(
+late final JwtService jwt;
+jwt = JwtService(
   ...,
   tokenStore: store,
   onRefreshTokenReuse: (payload) async {
-    await sessions.terminateAllForUser(payload['sub'] as String);
+    final sub = payload['sub'];
+    if (sub is String) await jwt.revokeAllForUser(sub);
   },
 );
 ```
+
+`revokeAllForUser` is also the right tool for account compromise or a
+"log out everywhere" button.
 
 ### Protecting routes
 

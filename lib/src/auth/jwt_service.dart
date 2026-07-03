@@ -233,9 +233,10 @@ class JwtService {
   Future<Map<String, dynamic>?> verifyAccessToken(String token) async {
     final payload = _verifyAccessTokenSync(token);
     if (payload == null) return null;
-    if (tokenStore != null &&
-        await tokenStore!.isRevoked(payload['jti'] as String)) {
-      return null;
+    final store = tokenStore;
+    if (store != null) {
+      if (await store.isRevoked(payload['jti'] as String)) return null;
+      if (await _isSubjectRevoked(store, payload)) return null;
     }
     return payload;
   }
@@ -254,6 +255,9 @@ class JwtService {
     if (payload == null) return null;
     final store = tokenStore;
     if (store != null) {
+      // A session-revoked token is plain-invalid — reject it before rotation
+      // bookkeeping, and without treating it as a reuse signal.
+      if (await _isSubjectRevoked(store, payload)) return null;
       final rotated = await store.revokeIfActive(
         payload['jti'] as String,
         ttl: _remainingTtl(payload),
@@ -285,6 +289,54 @@ class JwtService {
     if (payload == null) return false;
     await store.revoke(payload['jti'] as String, ttl: _remainingTtl(payload));
     return true;
+  }
+
+  /// Revokes **every outstanding token** for [sub] — access and refresh —
+  /// the "log this user out everywhere" operation.
+  ///
+  /// Tokens issued at or before this moment are rejected by
+  /// [verifyAccessToken] / [verifyRefreshToken]; tokens issued afterwards
+  /// (a fresh login) work normally. The revocation entry expires on its own
+  /// once the longest-lived token ([refreshTokenExpiry]) would have expired
+  /// anyway.
+  ///
+  /// This is the correct response to refresh-token reuse:
+  ///
+  /// ```dart
+  /// JwtService(
+  ///   ...,
+  ///   tokenStore: store,
+  ///   onRefreshTokenReuse: (payload) async {
+  ///     final sub = payload['sub'];
+  ///     if (sub is String) await jwtService.revokeAllForUser(sub);
+  ///   },
+  /// )
+  /// ```
+  ///
+  /// Returns `false` when no [tokenStore] is configured.
+  Future<bool> revokeAllForUser(String sub) async {
+    final store = tokenStore;
+    if (store == null) return false;
+    await store.revokeSubject(
+      sub,
+      cutoffEpochSeconds: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      ttl: refreshTokenExpiry + const Duration(minutes: 1),
+    );
+    return true;
+  }
+
+  /// True when the token's subject was session-revoked at or after the
+  /// token's issue time.
+  Future<bool> _isSubjectRevoked(
+    TokenStore store,
+    Map<String, dynamic> payload,
+  ) async {
+    final sub = payload['sub'];
+    if (sub is! String) return false;
+    final cutoff = await store.subjectRevocationCutoff(sub);
+    if (cutoff == null) return false;
+    final iat = payload['iat'];
+    return iat is! int || iat <= cutoff;
   }
 
   /// Time until the token's `exp` — how long a revocation entry must live.

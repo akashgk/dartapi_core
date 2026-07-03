@@ -40,6 +40,46 @@ abstract class TokenStore {
     await revoke(jti, ttl: ttl);
     return true;
   }
+
+  // ── Subject-level (whole-session) revocation ───────────────────────────────
+
+  /// `sub` → (revocation cutoff in epoch seconds, entry expiry).
+  final Map<String, (int, DateTime?)> _subjectCutoffs = {};
+
+  /// Revokes **every token of [sub] issued at or before [cutoffEpochSeconds]**
+  /// — the "log this user out everywhere" operation, typically triggered by
+  /// refresh-token reuse (theft signal) or an account compromise.
+  ///
+  /// [ttl] is how long the entry must be retained — pass the refresh-token
+  /// lifetime, after which every affected token has expired on its own.
+  ///
+  /// The default implementation stores the cutoff in process memory —
+  /// correct for a single process only. Distributed backends should override
+  /// this and [subjectRevocationCutoff] with a shared store (e.g. Redis
+  /// `SET sub:<sub> <cutoff> EX <ttl>`).
+  Future<void> revokeSubject(
+    String sub, {
+    required int cutoffEpochSeconds,
+    Duration? ttl,
+  }) async {
+    _subjectCutoffs[sub] = (
+      cutoffEpochSeconds,
+      ttl == null ? null : DateTime.now().add(ttl),
+    );
+  }
+
+  /// Returns the epoch-seconds cutoff at or before which [sub]'s tokens are
+  /// revoked, or `null` when the subject has no active revocation.
+  Future<int?> subjectRevocationCutoff(String sub) async {
+    final entry = _subjectCutoffs[sub];
+    if (entry == null) return null;
+    final (cutoff, expiresAt) = entry;
+    if (expiresAt != null && DateTime.now().isAfter(expiresAt)) {
+      _subjectCutoffs.remove(sub);
+      return null;
+    }
+    return cutoff;
+  }
 }
 
 /// An in-memory implementation of [TokenStore].
