@@ -1,3 +1,25 @@
+## 0.7.0
+
+**Built-in password hashing — `PasswordHasher`.**
+
+### New features
+
+- **`PasswordHasher`** — salted PBKDF2-HMAC-SHA256 password hashing with no
+  extra dependencies (`package:crypto` only):
+  - `PasswordHasher.hash(password)` → self-describing
+    `pbkdf2-sha256$<iterations>$<salt>$<hash>` string to store;
+  - `PasswordHasher.verify(password, encoded)` → constant-time comparison;
+    malformed input returns `false` instead of throwing;
+  - parameters travel with the hash, so the iteration count (default
+    100 000) can be raised later without invalidating stored hashes;
+  - implementation validated against the standard PBKDF2-HMAC-SHA256
+    known-answer test vector.
+- Hashing is deliberately CPU-bound (~100–300 ms); for high-traffic login
+  endpoints run it via `Isolate.run(...)` as documented.
+
+Closes the gap where generated projects' auth stub compared plaintext
+passwords because the framework offered no hashing primitive.
+
 ## 0.6.0
 
 **Session-wide token revocation — `revokeAllForUser`.**

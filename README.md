@@ -372,6 +372,25 @@ jwt = JwtService(
 `revokeAllForUser` is also the right tool for account compromise or a
 "log out everywhere" button.
 
+### Password hashing
+
+Salted PBKDF2-HMAC-SHA256, no extra dependencies:
+
+```dart
+// Registration — store the encoded string:
+final passwordHash = PasswordHasher.hash(dto.password);
+
+// Login — constant-time verify:
+if (!PasswordHasher.verify(dto.password, user.passwordHash)) {
+  throw const ApiException(401, 'Invalid credentials');
+}
+```
+
+The encoded hash is self-describing (`pbkdf2-sha256$iterations$salt$hash`),
+so you can raise the iteration count later without breaking stored hashes.
+Hashing is CPU-bound by design — on busy login endpoints wrap it in
+`Isolate.run(...)`.
+
 ### Protecting routes
 
 ```dart
